@@ -1,0 +1,5 @@
+scandalous - Port scanner in C.
+
+This is an implementation of a port scanner using the C programming language.
+
+so far, it parses a scan type and target.  more to come.
