@@ -1,10 +1,5 @@
-#include <stdio.h> /* printf(), fprintf() */
-#include <ctype.h> /*  isprint() macro */
-#include <string.h> /* strtok_r() bzero(), bcopy() */
-#include <stdlib.h> /* atoi(), exit() */
-#include <unistd.h> /* close() */
 #include <sys/socket.h>  /* socket(), connect() */
-/* #include <netinet/in.h> */
+#include <arpa/inet.h>
 
 struct target
 {

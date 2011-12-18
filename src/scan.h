@@ -1,6 +1,8 @@
 #include "target.h"
 
 
+#define MAX_TARGETS 256
+
 enum supported_scantypes 
 {
 	PING, SYN, TCP, UDP, FIN, NULLSCAN, XMAS
@@ -16,7 +18,4 @@ struct scan
 
 
 
-//function declarations
-int parse_arguments(int argc, char **argv);
-int parse_scantype(char *arg, enum supported_scantypes *type);
-int parse_target(char *arg);
+
