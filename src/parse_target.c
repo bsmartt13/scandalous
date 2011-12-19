@@ -4,10 +4,22 @@
 
 #include "parse_target.h"
 
-int split_target_list(char *arg, char **ret);
-int count_list_items(char *arg);
-char **parse_list(char *arg);
+/*******************************************************************************
+ *  File: parse_target.c
+ *  Author: Bill Smartt <bsmartt13@gmail.com>
+ *  Description: Helper functions to the main command line argument parser.
+ *		This file deals with building a list of the valid IPs in a string like
+ *		"192.168.1.101-110,192.168.2.*,192.168.*.250-254".  
+ *  Status: Implemented.  
+ *			Tested (Ubuntu 11.10 32-bit, Backtrack 5r1 32-bit gnome).  
+ *			Working (afaik).  
+ *  Please contact me if it is not working for you.
+ ******************************************************************************/
 
+/*  int split_target_list(char *arg, char **ret):
+ *  Splits list at the seperator ",".  returns an array of the IP address in the
+ *  function arg char **ret.  returns the number of targets found.
+ */
 int split_target_list(char *arg, char **ret){
 
 	int count = count_list_items(arg);
@@ -37,6 +49,9 @@ int split_target_list(char *arg, char **ret){
 	return targs_found;
 }
 
+/*  int count_list_items(char *arg):
+ *  counts the number of items in a list seperated by ",".
+ */
 int count_list_items(char *arg){
 	int count = 1, index = 0;
 	while (arg[index] != '\0'){
@@ -46,6 +61,9 @@ int count_list_items(char *arg){
 	return count;
 }
 
+/*  char **parse_list(char *arg):
+ *  ensures the list is properly parsed.
+ */
 char **parse_list(char *arg){
 	int counted = 0, found = 0;
 	char **parsed;

@@ -1,8 +1,19 @@
 #include "parse.h"
 #include "parse_target.h"
 
-//implementations
-int parse_arguments(int argc, char **argv) {
+/*******************************************************************************
+ *  File: parse.c
+ *  Author: Bill Smartt <bsmartt13@gmail.com>
+ *  Description: The main parsing functionality is contained in this file.
+ *  Status: Implemented.
+ ******************************************************************************/
+
+/*  int parse_arguments(int argc, char **argv):
+ *  Parses the entire command line argument.  as it finds the options, it calls 
+ *  helper functions to parse individual arguments.  Parsing the target IP is more
+ *  complex, so it sits in it's own file, parse_target.c|h.  
+ */
+int parse_arguments(int argc, char **argv){
 	int index = 0, valid_args = 0, targets_found = 0;
 	char *scan_op = NULL, *target_op = NULL;
 	int c;
@@ -18,7 +29,7 @@ int parse_arguments(int argc, char **argv) {
 	
 
 	while ((c = getopt (argc, argv, "s:t:")) != -1)
-		switch (c) {
+		switch (c){
 			case 's':
 				scan_op = optarg;
 				valid_args++;
@@ -31,7 +42,7 @@ int parse_arguments(int argc, char **argv) {
 				if (optopt == 's')
 					fprintf (stderr, "Option -%c requires an argument (scan \
 						type).\n", optopt);
-				else if (optopt == 't') {
+				else if (optopt == 't'){
 					fprintf(stderr, "Option -%c requires an argument (ip \
 						address in for x.x.x.x)", optopt);
 				}
@@ -49,7 +60,7 @@ int parse_arguments(int argc, char **argv) {
 
 	enum supported_scantypes *stype = (enum supported_scantypes *) \
 		malloc (sizeof(enum supported_scantypes));
-	if (valid_args > 0) {
+	if (valid_args > 0){
 		parse_scantype(scan_op, stype);
 		targets_found = parse_target(target_op, t);
 		printf("\ntargets_found back in parse_arguments(): %d\n", targets_found);
@@ -58,10 +69,14 @@ int parse_arguments(int argc, char **argv) {
 	return valid_args;
 }
 
-int parse_scantype(char *arg, enum supported_scantypes *type) {
+/*  int parse_scantype(char *arg, enum supported_scantypes *type):
+ *  Parses just the scantype argument.
+ *  note: not all scan types are supported yet.
+ */
+int parse_scantype(char *arg, enum supported_scantypes *type){
 
 	char base = arg[0];
-	switch (base) {
+	switch (base){
 		case 'P':
 			printf("scantype: ping scan\n");
 			*type = PING;
@@ -97,15 +112,12 @@ int parse_scantype(char *arg, enum supported_scantypes *type) {
 	}
 }
 
-/*  parse_target(char *, struct target )
- *  description: parses the "-t x.x.x.x" argument.
- *  args: char *arg: the target argument string
- *  	  struct target *ret: the
- *  currently supports: lists "x.x.x.x,x.x.x.x,..."
- *  planned: ranges: "x.x.x.x-y"
- *  		 wildcards: "x.x.*.*"
+/*  int parse_target(char *arg, struct target *ret):
+ *  Parses the IP list from command line args.  Finds the list delimiter ",", 
+ *  the range delimiter "-", and wildcards "*".  It calls the functions to deal with each of these
+ *  if it finds any.
  */
-int parse_target(char *arg, struct target *ret) {
+int parse_target(char *arg, struct target *ret){
 	char **target_list;
 	unsigned int code = 0; /* 1 = list, 2 = range, 3 = wildcard. */
 	int targets_found = 0, count = 0, i = 0;
@@ -114,27 +126,33 @@ int parse_target(char *arg, struct target *ret) {
 	const char wildcard_indicator[] = "*";
 	
 		
-	if (strstr(arg, ",") != NULL) {
+	if (strstr(arg, ",") != NULL){
 		code += 1;
 	}
-	if (strstr(arg, "-") != NULL) {
+	if (strstr(arg, "-") != NULL){
 		code += 2;
 	}
-	if (strstr(arg, "*") != NULL) {
+	if (strstr(arg, "*") != NULL){
 		code += 4;
 	}
 	
 	count = count_list_items(arg);
-	target_list = parse_list(arg);
-	for (i = 0; i < count; i++) {
-		printf("target found: %s (parse_target())\n", target_list[i]);
+	if (count > 1){
+		target_list = parse_list(arg);
+		for (i = 0; i < count; i++){
+			printf("target found: %s (parse_target())\n", target_list[i]);
+		}
+	} else{
+		printf("Only found 1 target: %s\n", arg);
 	}
 	return count;
 }
 
 
-
-struct target buildTarget(char *target_op) {
+/*  struct target buildTarget(char *target_op):
+ *  Sets up a default target.
+ */
+struct target buildTarget(char *target_op){
 
 	struct target t;
 	struct sockaddr_in s;
@@ -145,7 +163,7 @@ struct target buildTarget(char *target_op) {
 	return t;
 }
 
-int main (int argc, char **argv) {
+int main (int argc, char **argv){
 	printf("-----------------------------------------\n");
 	printf("parse.c\n");
 	printf("-----------------------------------------\n\n");
