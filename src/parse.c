@@ -23,11 +23,11 @@ int parse_arguments(int argc, char **argv){
 	
 	t = (struct target *) malloc (sizeof (struct target));
 	s = (struct scan *) malloc (sizeof (struct scan));
+
 	target_sockaddr = (struct sockaddr_in *) malloc (sizeof (struct sockaddr_in));
 	s->victim = t;
 	t->address = target_sockaddr;
 	
-
 	while ((c = getopt (argc, argv, "s:t:")) != -1)
 		switch (c){
 			case 's':
@@ -65,7 +65,7 @@ int parse_arguments(int argc, char **argv){
 		targets_found = parse_target(target_op, t);
 		printf("\ntargets_found back in parse_arguments(): %d\n", targets_found);
 	}
-		
+	
 	return valid_args;
 }
 
@@ -120,11 +120,12 @@ int parse_scantype(char *arg, enum supported_scantypes *type){
 int parse_target(char *arg, struct target *ret){
 	char **target_list;
 	unsigned int code = 0; /* 1 = list, 2 = range, 3 = wildcard. */
-	int targets_found = 0, count = 0, i = 0;
-	
+	int count = 0, i = 0;
+	int wc_position = -1;
+	/*
 	const char range_indicator[] = "-";
 	const char wildcard_indicator[] = "*";
-	
+	*/
 		
 	if (strstr(arg, ",") != NULL){
 		code += 1;
@@ -145,6 +146,12 @@ int parse_target(char *arg, struct target *ret){
 	} else{
 		printf("Only found 1 target: %s\n", arg);
 	}
+	wc_position = find_wc_position(arg);
+	printf("found a wildcard at position: %d", wc_position);
+	if (wc_position != -1){
+		target_list = build_targets_from_wc(arg, wc_position);
+	}
+	
 	return count;
 }
 
