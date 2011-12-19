@@ -1,17 +1,20 @@
 #include "parse.h"
+#include "parse_target.h"
 
 //implementations
 int parse_arguments(int argc, char **argv) {
-	int index = 0, valid_args = 0;
+	int index = 0, valid_args = 0, targets_found = 0;
 	char *scan_op = NULL, *target_op = NULL;
 	int c;
 	struct target *t;
 	struct scan *s;
+	struct sockaddr_in *target_sockaddr;
 	
 	t = (struct target *) malloc (sizeof (struct target));
 	s = (struct scan *) malloc (sizeof (struct scan));
+	target_sockaddr = (struct sockaddr_in *) malloc (sizeof (struct sockaddr_in));
 	s->victim = t;
-	memset(t->address, 0, sizeof(struct sockaddr_in *));
+	t->address = target_sockaddr;
 	
 
 	while ((c = getopt (argc, argv, "s:t:")) != -1)
@@ -45,14 +48,13 @@ int parse_arguments(int argc, char **argv) {
 		printf ("Non-option argument %s\n", argv[index]);
 
 	enum supported_scantypes *stype = (enum supported_scantypes *) \
-		malloc (sizeof(enum supported_scantypes *));
-	if (valid_args > 0)
+		malloc (sizeof(enum supported_scantypes));
+	if (valid_args > 0) {
 		parse_scantype(scan_op, stype);
+		targets_found = parse_target(target_op, t);
+		printf("\ntargets_found back in parse_arguments(): %d\n", targets_found);
+	}
 		
-
-	
-	free(t);
-	free(s);
 	return valid_args;
 }
 
@@ -104,14 +106,14 @@ int parse_scantype(char *arg, enum supported_scantypes *type) {
  *  		 wildcards: "x.x.*.*"
  */
 int parse_target(char *arg, struct target *ret) {
-	char **targs;
+	char **target_list;
 	unsigned int code = 0; /* 1 = list, 2 = range, 3 = wildcard. */
-	int targets_found;
-	ret = (struct target *) malloc (sizeof (struct target *));
+	int targets_found = 0, count = 0, i = 0;
 	
 	const char range_indicator[] = "-";
 	const char wildcard_indicator[] = "*";
 	
+		
 	if (strstr(arg, ",") != NULL) {
 		code += 1;
 	}
@@ -122,39 +124,15 @@ int parse_target(char *arg, struct target *ret) {
 		code += 4;
 	}
 	
-	if (code & 1)
-		targets_found = list_targets(arg, targs);
-	else
-		targets_found = 1;
-	return 0;
-}
-
-int list_targets(char *arg, char **ret) {
-
-	int count = 0, index = 0;
-	while (arg[index] != '\0'){
-		if (arg[index++] == ',')
-			count++;
-	} /* compute list size */
-
-	const char list_delim[] = ",";
-	char *token;
-	char *running;
-	char *targs[count];  /* 256 dotted quads x.x.x.x */
-	int targs_found = 0;
-	
-	ret = (char **) malloc (sizeof (char *) * count);
-	running = strdup(arg); //must free this memory!
-	token = strsep(&running, list_delim);
-	ret[targs_found] = (char *) malloc (sizeof (char) * strlen(token));
-	strncpy(targs[targs_found++], token, strlen(token));
-	while (token != NULL) {
-		token = strsep(&running, list_delim);
-		targs[targs_found] = (char *) malloc (sizeof (token));
-		strncpy(targs[targs_found++], token, sizeof (token));
+	count = count_list_items(arg);
+	target_list = parse_list(arg);
+	for (i = 0; i < count; i++) {
+		printf("target found: %s (parse_target())\n", target_list[i]);
 	}
 	return count;
 }
+
+
 
 struct target buildTarget(char *target_op) {
 
@@ -168,7 +146,11 @@ struct target buildTarget(char *target_op) {
 }
 
 int main (int argc, char **argv) {
-
+	printf("-----------------------------------------\n");
 	printf("parse.c\n");
+	printf("-----------------------------------------\n\n");
+	
+	parse_arguments(argc, argv);
+	
 	return 0;
 }

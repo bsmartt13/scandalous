@@ -1,6 +1,6 @@
 #include <stdio.h> /* printf(), fprintf() */
 #include <ctype.h> /*  isprint() macro */
-#include <string.h> /* strtok_r() bzero(), bcopy() */
+#include <string.h> /* strtok_r() bzero(), bcopy() strdup() */
 #include <stdlib.h> /* atoi(), exit() */
 #include <unistd.h> /* close() */
 
@@ -11,5 +11,4 @@
 int parse_arguments(int argc, char **argv);
 int parse_scantype(char *arg, enum supported_scantypes *type);
 int parse_target(char *arg, struct target *ret);
-int list_targets(char *arg, char **ret);
 struct target buildTarget(char *target_op);
