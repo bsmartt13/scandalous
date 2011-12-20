@@ -3,3 +3,16 @@ scandalous - Port scanner in C.
 This is an implementation of a port scanner using the C programming language.
 
 so far, it parses a scan type and target.  more to come.
+
+I.  Command line arguments / How to run scandalous
+-s:		specify the scantype.  The available scantypes are "TCPCONN", "SYN",
+		"UDP", "FIN", "NULLSCAN", and "XMAS".
+	ex.		./scandalous -s NULLSCAN
+	ex.		./scandalous -s TCPCONN
+	
+-t:		specify the target IP.  The currently supported formats for IPs
+		include lists of IPs seperated with commas ",", and "*" wildcards.
+	ex.		./scandalous -t 192.168.1.1,192.168.1.2,192.168.1.3
+	ex.		./scandalous -t 192.168.1.*
+	ex.		./scandalous -t 192.168.1.1
+			note: ranges in the form "-" will be supported soon.
