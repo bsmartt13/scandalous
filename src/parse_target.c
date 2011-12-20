@@ -122,7 +122,7 @@ int find_wc_quad(char *arg){
 /*  char **build_targets_from_wc(char *arg, int pre_wc_chars):
  *  generates all of the actual IPs matching the wildcarded IP.
  */
-char **build_targets_from_wc(char *arg, int pre_wc_chars){
+char **build_targets_from_wc(char *arg, int pre_wc_chars, int *generated){
 	char **ret;
 	int current_ip = 0;
 	int valid_targets = 0;
@@ -141,6 +141,7 @@ char **build_targets_from_wc(char *arg, int pre_wc_chars){
 		printf("generated new ip from wildcarded target: %s (#%d)\n", ret[current_ip], valid_targets);
 		#endif
 	}
+	memcpy(generated, &current_ip, sizeof(int));
 	return ret;
 }
 

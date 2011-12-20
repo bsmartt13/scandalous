@@ -62,7 +62,7 @@ int parse_arguments(int argc, char **argv){
 		malloc (sizeof(enum supported_scantypes));
 	if (valid_args > 0){
 		parse_scantype(scan_op, stype);
-		targets_found = parse_target(target_op, t);
+		targets_found = parse_target(target_op, &t);
 		printf("\ntargets_found back in parse_arguments(): %d\n", targets_found);
 	}
 	
@@ -117,8 +117,9 @@ int parse_scantype(char *arg, enum supported_scantypes *type){
  *  the range delimiter "-", and wildcards "*".  It calls the functions to deal with each of these
  *  if it finds any.
  */
-int parse_target(char *arg, struct target *ret){
+int parse_target(char *arg, struct target **ret){
 	char **target_list;
+	int targets_found = 0;
 	unsigned int code = 0; /* 1 = list, 2 = range, 3 = wildcard. */
 	int count = 0, i = 0;
 	int wc_position = -1;
@@ -126,7 +127,7 @@ int parse_target(char *arg, struct target *ret){
 	const char range_indicator[] = "-";
 	const char wildcard_indicator[] = "*";
 	*/
-		
+	
 	if (strstr(arg, ",") != NULL){
 		code += 1;
 	}
@@ -149,12 +150,18 @@ int parse_target(char *arg, struct target *ret){
 	wc_position = find_wc_position(arg);
 	printf("found a wildcard at position: %d", wc_position);
 	if (wc_position != -1){
-		target_list = build_targets_from_wc(arg, wc_position);
+		target_list = build_targets_from_wc(arg, wc_position, &targets_found);
+	}
+	
+	if (target_list){ 
+		printf("found %d targets total.  here they are:\n", targets_found);
+		for (i = 0; i < targets_found; i++){
+			printf("target %d: %s\n", i, target_list[i]);
+		}
 	}
 	
 	return count;
 }
-
 
 /*  struct target buildTarget(char *target_op):
  *  Sets up a default target.

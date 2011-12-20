@@ -9,4 +9,4 @@ char **parse_list(char *arg);
 int find_wildcard(char *arg);
 int find_wc_position(char *arg);
 int find_wc_quad(char *arg);
-char **build_targets_from_wc(char *arg, int pre_wc_chars);
+char **build_targets_from_wc(char *arg, int pre_wc_chars, int *generated);
