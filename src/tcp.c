@@ -1,16 +1,10 @@
 #include "tcp.h"
 
-/*******************************************************************************
- *	File: tcp.c
- *	Desc: creates tcp packets and sends them.
- *
- ******************************************************************************/
-
 int main(int argc, char **argv){
 	int x;
-	int fags[] = {1, 1, 1, 1, 1, 1, 1, 1};
+	
 	// test packet builder
-	x = build_tcp_packet(argv[1], fags);
+	x = build_tcp_packet(argv[1]);
 	return 0;
 }
 
@@ -50,25 +44,25 @@ unsigned short int compute_chksum(unsigned short int *addr, int length){
  *  variable length fields. 
  *  The pseudo-header layout:
  *  |0_________________________________15_________________________________31|
- *  |                           Source IP Address                           |
- *  |                       Destination IP Address                          |
- *  |   reserved    |   IP Protocol    |         TCP Segment Length         |
+ *  |							Source IP Address							|
+ *  |						Destination IP Address							|
+ *  |	reserved	| 	IP Protocol		| 		TCP Segment Length			|
  *  ************************************************************************/
  /*  Here's the TCP segment layout:
  *  |0_________________________________15_________________________________31|
- *  |          Source Port              |           Destination Port        |
- *  |                           Sequence Number                             |
- *  |                         Acknowledgement Number                        |
- *  |Data Offset|reserved|Control bits  |              Window               |
- *  |            Checksum               |           Urgent Pointer          |
- *  |  Option Kind 1 | Option Length 1	|           Option Data 1           |
- *  |            .....                                   .....              |
- *  |            .....                  |  Option Kind n | Option Length n	|
- *  |            Option Data n                           |	    Padding     |
- *  |            Data                   |                .....              |
- *  |            .                      |                .                  |
- *  |            .                      |                .                  |
- *  |            .                      |                .                  |
+ *  |			Source Port				|			Destination Port		|
+ *  |							Sequence Number								|
+ *  |							Acknowledgement Number						|
+ *  |Data Offset|reserved|Control bits	|				Window				|
+ *  |			Checksum				|			Urgent Pointer			|
+ *  |  Option Kind 1 | Option Length 1	|			Option Data 1			|
+ *  |			.....							.....						|
+ *  |  			.....					|  Option Kind n | Option Length n	|
+ *  |			Option Data n								|	Padding		|
+ *  |			Data					|				Data				|
+ *  |			.						|				.					|
+ *  |			.						|				.					|
+ *  |			.						|				.					|
  ***************************************************************************/
 unsigned short int tcp_chksum(struct ip ipheader, struct tcphdr tcpheader){
 
@@ -181,25 +175,25 @@ unsigned short int tcp_chksum(struct ip ipheader, struct tcphdr tcpheader){
 }
 
 /*******************************************************************************
- *	int build_tcp_packet(char *iface, int *flags_ptr):
+ *	unsigned short int tcp_chksum(struct ip ipheader, struct tcphdr tcpheader):
  *	
- *	Construct a TCP packet with IP datagram header too.  
+ *	Builds a TCP packet.
  *   -------------------------------------------------------------------------
  *  |0_________________________________15_________________________________31|
  *  | Version | IHL* | Type of Service*	|		Total Length (TL)			|
- *  |           Identification          |   Flags*  |     Fragment Offset   |
- *  |  Time To Live   | Protocol        |       Header Checksum             |
- *  |                           Source Addresss                             |
- *  |                           Destination Addresss                        |
- *  |           Options                                     |   Padding     |
- *  |           Data                                                        |
+ *  |			Identification			|	Flags*	|	  Fragment Offset	|
+ *  | Time To Live	|	Protocol		|			Header Checksum			|
+ *  |							Source Addresss								|
+ *  |						  Destination Addresss							|
+ *  |			Options										| 	Padding		|
+ *  | 			Data														|
  *  -------------------------------------------------------------------------
  * IHL = Internet Header Lenght
  * TOS = Precedence:0-2 Delay:3 Throughput:4 Reliability:5 Reserved:6,7
  * Flags = Reserved:0, Don't Fragment (DF):1, More Fragments (MF):2
  * 
  ******************************************************************************/
-int build_tcp_packet(char *iface, int *flags_ptr){
+int build_tcp_packet(char *iface){
 	int i, status, sock;
 	const int on = 1;
 	char *interface, *target, *source_ipaddr, *dest_ipaddr;
@@ -286,7 +280,7 @@ int build_tcp_packet(char *iface, int *flags_ptr){
 		exit (EXIT_FAILURE);
 	}
 
-	/* Use ioctl() to lookup interface. */
+	// Use ioctl() to lookup interface.
 	memset (&ifr, 0, sizeof (ifr));
 	snprintf (ifr.ifr_name, sizeof (ifr.ifr_name), "%s", interface);
 	if (ioctl (sock, SIOCGIFINDEX, &ifr) < 0) {
@@ -299,10 +293,10 @@ int build_tcp_packet(char *iface, int *flags_ptr){
 	/* users IP needs to go here */
 	strcpy (source_ipaddr, "192.168.1.111");
 
-	/* Destination URL or IPv4 address */
+	// Destination URL or IPv4 address
 	strcpy (target, "133.7.133.7");
 
-	/* Fill out hints for getaddrinfo(). */
+	// Fill out hints for getaddrinfo().
 	memset (&hints, 0, sizeof (struct addrinfo));
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
@@ -326,13 +320,17 @@ int build_tcp_packet(char *iface, int *flags_ptr){
 	 * which is a length of 5×32 = 160 bits = 20 bytes. Being a 4-bit value, *
 	 * the maximum length is 15 words (15×32 bits) or 480 bits = 60 bytes.   */
 	ipheader.ip_hl = IP4_HEADER_LEN / sizeof (unsigned long int);
+
 	/* version: IPv4 (1 nibble or 4 bits) */
 	ipheader.ip_v = 4;
+
 	/* Type of Service (TOS): carries info for quality of service features 	  *
 	 * like priority datagrams. 1 byte.										  */
 	ipheader.ip_tos = 0;
+
 	/* Total length of datagram (16 bits): IP header + TCP header */
 	ipheader.ip_len = htons (IP4_HEADER_LEN + TCP_HEADER_LEN);
+
 	/* ID sequence number (16 bits): unused, since we're sending a single     *
 	 * datagram. */
 	ipheader.ip_id = htons (0);
@@ -340,8 +338,10 @@ int build_tcp_packet(char *iface, int *flags_ptr){
 	/* Flags, and Fragmentation offset (3, 13 bits): 0 since single datagram */
 	/* Zero (1 bit) */
 	ip_flags[0] = 0;
+
 	/* Do not fragment flag (1 bit) */
 	ip_flags[1] = 0;
+
 	/* More fragments following flag (1 bit) */
 	ip_flags[2] = 0;
 
@@ -349,25 +349,33 @@ int build_tcp_packet(char *iface, int *flags_ptr){
 	 * fragment relative to the beginning of the original unfragmented IP     *
 	 * datagram. The first fragment has an offset of zero.					  */
 	ip_flags[3] = 0;
+
 	ipheader.ip_off = htons ((ip_flags[0] << 15) + (ip_flags[1] << 14) \
 		+ (ip_flags[2] << 13) +  ip_flags[3]);
+
 	/* Time-to-Live (8 bits): default to maximum value */
 	ipheader.ip_ttl = 255;
+
 	/* Transport layer protocol (8 bits): 6 for TCP */
 	ipheader.ip_p = IPPROTO_TCP;
+
 	/* Source IPv4 address (32 bits) */
 	inet_pton (AF_INET, source_ipaddr, &(ipheader.ip_src));
+
 	/* Destination IPv4 address (32 bits) */
 	inet_pton (AF_INET, dest_ipaddr, &ipheader.ip_dst);
+
 	/* IPv4 header checksum (16 bits): set to 0 when calculating checksum */
 	ipheader.ip_sum = 0;
 	ipheader.ip_sum = compute_chksum ((unsigned short int *) &ipheader, IP4_HEADER_LEN);
-	
+
 	/* TCP HEADER */
 	/* Source port number (16 bits) */
 	tcpheader.th_sport = htons (-1);
+
 	/* Destination port number (16 bits) */
 	tcpheader.th_dport = htons (80);
+
 	/* Sequence number (32 bits): 
 	 * If the SYN flag is set (1), then this is the initial sequence number.  *
 	 * The sequence number of the actual first data byte and the acknowledged *
@@ -375,6 +383,7 @@ int build_tcp_packet(char *iface, int *flags_ptr){
 	 * If the SYN flag is clear (0), then this is the accumulated sequence    *
 	 * number of the first data byte of this packet for the current session.  */
 	tcpheader.th_seq = htonl (0);
+
 	/* Acknowledgement number (32 bits): 0 in first packet of SYN/ACK 		  *
 	 * process. If the ACK flag is set then the value of this field is the    *
 	 * next sequence number that the receiver is expecting. This acknowledges *
@@ -382,8 +391,10 @@ int build_tcp_packet(char *iface, int *flags_ptr){
 	 * acknowledges the other end's initial sequence number itself, but no 	  *
 	 * data.  */
 	tcpheader.th_ack = htonl (0);
+
 	// Reserved (4 bits): Placeholders for TCP development.  Must be zero.
 	tcpheader.th_x2 = 0;
+
 	/* Data offset (4 bits): specifies the size of the TCP header in 32-bit   *
 	 * words. The minimum size header is 5 words and the maximum is 15 words  *
 	 * thus giving the minimum size of 20 bytes and maximum of 60 bytes, 	  *
@@ -392,57 +403,71 @@ int build_tcp_packet(char *iface, int *flags_ptr){
 
 	/* Flag name: description */
 	/* FIN: No more data from sender. */
-	tcp_flags[0] = flags_ptr[0];
+	tcp_flags[0] = 0;
+
 	/* SYN: Sync sequence numbers.  Only 1st packet sent from each end  *
 	 * should have this flag set. 											 */ 
-	tcp_flags[1] = flags_ptr[1];
+	tcp_flags[1] = 1;
+
 	/* RST: Reset the connection. */
-	tcp_flags[2] = flags_ptr[2];
+	tcp_flags[2] = 0;
+
 	/* PSH: Push function. Asks to push the buffered data to the receiving 	 *
 	 * device. 																 */
-	tcp_flags[3] = flags_ptr[3];
+	tcp_flags[3] = 0;
+
 	/* ACK: indicates acknowledgment field is significant.  All regular 	 *
 	 * packets after the initial SYN packet sent by client should have this  *
 	 * flag set. 															 */
-	tcp_flags[4] = flags_ptr[4];
+	tcp_flags[4] = 0;
+
 	// URG: Indicates the Urgent pointer field is significant.  */
-	tcp_flags[5] = flags_ptr[5];
+	tcp_flags[5] = 0;
+
 	/* ECE: (ECN-Echo) if (SYN), sender is ECN capable.  Else, congestion	 * 
 	 * experienced.  */
-	tcp_flags[6] = flags_ptr[6];
+	tcp_flags[6] = 0;
+
 	/* CWR: ongestion Window Reduced indicates that it received a TCP segment *
 	 * with the ECE flag set and has responded in CCM (congestion control 	  *
 	 * mechansim).    */
-	tcp_flags[7] = flags_ptr[7];
+	tcp_flags[7] = 0;
 
 	tcpheader.th_flags = 0;
 	for (i=0; i<8; i++) {
 		tcpheader.th_flags += (tcp_flags[i] << i);
 	}
+
 	// Window size (16 bits)
 	tcpheader.th_win = htons (65535);
+
 	// Urgent pointer (16 bits): 0 (only valid if URG flag is set)
 	tcpheader.th_urp = htons (0);
+
 	// TCP checksum (16 bits)
 	tcpheader.th_sum = tcp_chksum (ipheader, tcpheader);
+
 	/* Prep the packet to be sent. */
 	/* First thing in the packet is the IPv4 header. */
 	memcpy (packet, &ipheader, IP4_HEADER_LEN);
+
 	/* Append TCP header to IP header. */
 	memcpy ((packet + IP4_HEADER_LEN), &tcpheader, TCP_HEADER_LEN);
+
 	/* Let kernel take care of ethernet header.  It is not revelant for our   *
 	 * purposes. Pass destination IP to kernel.  To do this, we can create a  *
 	 * struct in_addr for the destination IP and pass it to sendto().		  */
 	memset (&sin, 0, sizeof (struct sockaddr_in));
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = ipheader.ip_dst.s_addr;
+
 	/* Get a socket (Raw).  */
 	if ((sock = socket (AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0) {
 		perror ("socket() failed ");
 		exit (EXIT_FAILURE);
 	}
 
-	/* Socket configuration.  Tell it we will provide the IP(v4) 	  *
+	/* Configure socket to our needs.  Tell it we will provide the IP(v4) 	  *
 	 * header.																  */
 	if (setsockopt (sock, IPPROTO_IP, IP_HDRINCL, &on, sizeof (on)) < 0) {
 		perror ("setsockopt() failed to set IP_HDRINCL ");
@@ -461,7 +486,6 @@ int build_tcp_packet(char *iface, int *flags_ptr){
 		perror ("sendto() failed ");
 		exit (EXIT_FAILURE);
 	}
-	printf("packet sent!\n");
 
 	/* Close socket descriptor. */
 	close (sock);
@@ -474,5 +498,6 @@ int build_tcp_packet(char *iface, int *flags_ptr){
 	free (dest_ipaddr);
 	free (ip_flags);
 	free (tcp_flags);
+
 	return (EXIT_SUCCESS);
 }

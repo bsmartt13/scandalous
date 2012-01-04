@@ -24,4 +24,4 @@
 // Function declarations
 unsigned short int compute_chksum(unsigned short int *addr, int length);
 unsigned short int tcp_chksum(struct ip ipheader, struct tcphdr tcpheader);
-int build_tcp_packet(char *iface, int *flags_ptr);
+int build_tcp_packet(char *iface);
