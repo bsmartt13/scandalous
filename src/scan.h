@@ -16,6 +16,8 @@ struct scan
 	int sock; /* socket descriptor */
 };
 
-
-
-
+struct results
+{
+	int *port_status;
+	
+};

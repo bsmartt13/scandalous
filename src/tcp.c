@@ -7,10 +7,29 @@
  ******************************************************************************/
 
 int main(int argc, char **argv){
+
+
+	system("iptables -A OUTPUT -p tcp -d 127.0.0.1 -s 127.0.0.1 --dport 80 --tcp-flags RST RST -j LOG");
+	system("iptables -A OUTPUT -p tcp -d 127.0.0.1 -s 127.0.0.1 --dport 80 --tcp-flags RST RST -j DROP");
 	int x;
-	int fags[] = {1, 1, 1, 1, 1, 1, 1, 1};
+	/* 				[FIN, SYN, RST, PSH, ACK, URG, ECE, CWR] */
+	int syn[] = 	{ 0,   1,   0,   0,   0,   0,   0,   0 };
+	int urgsyn[] = 	{ 0,   1,   0,   0,   0,   0,   0,   0 };
+	int ack[] =     { 0,   0,   0,   0,   1,   0,   0,   0 };
+	int synack[] =  { 0,   1,   0,   0,   1,   0,   0,   0 };
+	int fin[] =     { 1,   0,   0,   0,   0,   0,   0,   0 };
+	int urgack[] =  { 0,   0,   0,   0,   1,   1,   0,   0 };
+	
 	// test packet builder
-	x = build_tcp_packet(argv[1], fags);
+	
+	x = build_tcp_packet(argv[1], syn);
+/*	build_tcp_packet(argv[1], urgsyn);
+	build_tcp_packet(argv[1], synack);
+	build_tcp_packet(argv[1], ack);
+	build_tcp_packet(argv[1], urgack);
+	build_tcp_packet(argv[1], fin);  */
+	build_tcp_packet(argv[1], ack);	
+	system("iptables -A OUTPUT -p tcp -d 127.0.0.1 -s 127.0.0.1 --dport 80 --tcp-flags RST RST -j ACCEPT");
 	return 0;
 }
 
@@ -39,37 +58,22 @@ unsigned short int compute_chksum(unsigned short int *addr, int length){
 	return (answer);
 }
 
-/*******************************************************************************
+/***
  *	unsigned short int tcp_chksum(struct ip ipheader, struct tcphdr tcpheader):
- *	
- *	We use a buffer of size IP_MAXPACKET (65,535 bytes, defined in netinet/ip.h).
- *  First we build the pseudo-header, which will be included when we do the
+ *	generate the (correct) checksum for a given tcp header.
+ *  But we need to build a pseudo-header, which will be included when we do the
  *	checksum calc.  It contains important info taken from fields in both the TCP
- *	and IP datagram.  The pseudo-header (12 bytes) is followed by the actual TCP
- *	header up to the `options' fields.  The Options and the data are both  
- *  variable length fields. 
- *  The pseudo-header layout:
- *  |0_________________________________15_________________________________31|
- *  |                           Source IP Address                           |
- *  |                       Destination IP Address                          |
- *  |   reserved    |   IP Protocol    |         TCP Segment Length         |
- *  ************************************************************************/
- /*  Here's the TCP segment layout:
- *  |0_________________________________15_________________________________31|
- *  |          Source Port              |           Destination Port        |
- *  |                           Sequence Number                             |
- *  |                         Acknowledgement Number                        |
- *  |Data Offset|reserved|Control bits  |              Window               |
- *  |            Checksum               |           Urgent Pointer          |
- *  |  Option Kind 1 | Option Length 1	|           Option Data 1           |
- *  |            .....                                   .....              |
- *  |            .....                  |  Option Kind n | Option Length n	|
- *  |            Option Data n                           |	    Padding     |
- *  |            Data                   |                .....              |
- *  |            .                      |                .                  |
- *  |            .                      |                .                  |
- *  |            .                      |                .                  |
- ***************************************************************************/
+ *	and IP headers.  The pseudo-header (12 bytes) is followed by the actual TCP
+ *	header up to the `options' field.
+ *  Pseudo-header format specification:
+ *                   +--------+--------+--------+--------+
+ *                   |           Source Address          |
+ *                   +--------+--------+--------+--------+
+ *                   |         Destination Address       |
+ *                   +--------+--------+--------+--------+
+ *                   |  zero  |  PTCL  |    TCP Length   |
+ *                   +--------+--------+--------+--------+
+ ***/
 unsigned short int tcp_chksum(struct ip ipheader, struct tcphdr tcpheader){
 
 	unsigned short int sz;
@@ -84,6 +88,7 @@ unsigned short int tcp_chksum(struct ip ipheader, struct tcphdr tcpheader){
 	 * lengths when we go to compute the checksum.							 */
 
 	/**** START PSEUDO HEADER ****/
+
 	/* Source IP is first thing we need. 4 bytes. */
 	memcpy(buf_p, &ipheader.ip_src.s_addr, sizeof(ipheader.ip_src.s_addr));
 	buf_p += sizeof(ipheader.ip_src.s_addr);
@@ -108,9 +113,10 @@ unsigned short int tcp_chksum(struct ip ipheader, struct tcphdr tcpheader){
 	memcpy (buf_p, &sz, sizeof(sz));
 	buf_p += sizeof(sz);
 	chksumsz += sizeof(sz);
-	/**** END PSEUDO HEADER ****/
 	
+	/**** END PSEUDO HEADER ****/
 	/**** START TCP HEADER ****/
+	
 	/* Source Port, 2 bytes. */
 	memcpy(buf_p, &tcpheader.th_sport, sizeof(tcpheader.th_sport));
 	buf_p += sizeof(tcpheader.th_sport);
@@ -180,25 +186,49 @@ unsigned short int tcp_chksum(struct ip ipheader, struct tcphdr tcpheader){
 	return compute_chksum((unsigned short int *)buf, chksumsz);
 }
 
-/*******************************************************************************
+/***
  *	int build_tcp_packet(char *iface, int *flags_ptr):
  *	
  *	Construct a TCP packet with IP datagram header too.  
- *   -------------------------------------------------------------------------
- *  |0_________________________________15_________________________________31|
- *  | Version | IHL* | Type of Service*	|		Total Length (TL)			|
- *  |           Identification          |   Flags*  |     Fragment Offset   |
- *  |  Time To Live   | Protocol        |       Header Checksum             |
- *  |                           Source Addresss                             |
- *  |                           Destination Addresss                        |
- *  |           Options                                     |   Padding     |
- *  |           Data                                                        |
- *  -------------------------------------------------------------------------
+ *  TCP packet header format specification:
+ *  0                   1                   2                   3   
+ *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |          Source Port          |       Destination Port        |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                        Sequence Number                        |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                    Acknowledgment Number                      |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |  Data |           |U|A|P|R|S|F|                               |
+ * | Offset| Reserved  |R|C|S|S|Y|I|            Window             |
+ * |       |           |G|K|H|T|N|N|                               |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |           Checksum            |         Urgent Pointer        |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                    Options                    |    Padding    |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                             data                              |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ 
+ *  IP packet header format specification:
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |Version|  IHL  |Type of Service|          Total Length         |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |         Identification        |Flags|      Fragment Offset    |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |  Time to Live |    Protocol   |         Header Checksum       |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                       Source Address                          |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                    Destination Address                        |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                    Options                    |    Padding    |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * IHL = Internet Header Lenght
  * TOS = Precedence:0-2 Delay:3 Throughput:4 Reliability:5 Reserved:6,7
  * Flags = Reserved:0, Don't Fragment (DF):1, More Fragments (MF):2
  * 
- ******************************************************************************/
+ ***/
 int build_tcp_packet(char *iface, int *flags_ptr){
 	int i, status, sock;
 	const int on = 1;
@@ -297,10 +327,10 @@ int build_tcp_packet(char *iface, int *flags_ptr){
 	printf ("Index for interface %s is %i\n", interface, ifr.ifr_ifindex);
 
 	/* users IP needs to go here */
-	strcpy (source_ipaddr, "192.168.1.111");
+	strcpy (source_ipaddr, "127.0.0.1");
 
 	/* Destination URL or IPv4 address */
-	strcpy (target, "133.7.133.7");
+	strcpy (target, "127.0.0.1");
 
 	/* Fill out hints for getaddrinfo(). */
 	memset (&hints, 0, sizeof (struct addrinfo));
@@ -365,7 +395,7 @@ int build_tcp_packet(char *iface, int *flags_ptr){
 	
 	/* TCP HEADER */
 	/* Source port number (16 bits) */
-	tcpheader.th_sport = htons (-1);
+	tcpheader.th_sport = htons (31337);
 	/* Destination port number (16 bits) */
 	tcpheader.th_dport = htons (80);
 	/* Sequence number (32 bits): 
@@ -455,7 +485,7 @@ int build_tcp_packet(char *iface, int *flags_ptr){
 		exit (EXIT_FAILURE);
 	}
 
-	/* use sendto() to send the packet to the 'net. */ 
+	/* use sendto() to send the packet out. */ 
 	if (sendto (sock, packet, IP4_HEADER_LEN + TCP_HEADER_LEN, 0, \
 		(struct sockaddr *) &sin, sizeof (struct sockaddr)) < 0)  {
 		perror ("sendto() failed ");
