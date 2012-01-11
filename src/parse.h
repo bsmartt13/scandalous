@@ -9,6 +9,6 @@
 
 //function declarations
 int parse_arguments(int argc, char **argv);
-int parse_scantype(char *arg, enum supported_scantypes *type);
+int parse_scantype(char *arg, enum scan_type *type);
 int parse_target(char *arg, struct target **ret);
 struct target buildTarget(char *target_op);
