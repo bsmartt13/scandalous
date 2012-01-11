@@ -47,14 +47,12 @@ struct host
 	unsigned int num_ports;		// length of ports array
 	unsigned int host_type; 
 	
-	
 };
 
 struct target
 {
 	struct host *source_h;
 	struct host *dest_h;
-
 	int status;
 };
 
