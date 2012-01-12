@@ -2,7 +2,7 @@
 
 /*******************************************************************************
  *  File: tcp.c
- *  Desc: creates tcp packets and sends them.
+ *  Desc: Barebones TCP Stack. 
  *
  ******************************************************************************/
  
@@ -397,7 +397,7 @@ int partial_handshake(int *flags_arg) {
     socklen_t sin_len;
     struct ifreq ifr;
     void *tmp;
-    char *ifce = "lo";
+    char *ifce = "eth1";
 
     memcpy(flags_ptr, SYN_PACKET_FLAGS, sizeof(int)*8);
     /* Memory allocations  */
@@ -484,10 +484,10 @@ int partial_handshake(int *flags_arg) {
     printf ("Index for interface %s is %i\n", interface, ifr.ifr_ifindex);
     
     /* users IP needs to go here */
-    strcpy(source_ipaddr, "127.0.0.1");
+    strcpy(source_ipaddr, "192.168.19.104");
 
     /* Destination URL or IPv4 address */
-    strcpy(target_ipaddr, "127.0.0.1");
+    strcpy(target_ipaddr, "192.168.1.113");
 
     /* Fill out hints for getaddrinfo(). */
     memset(&hints, 0, sizeof(struct addrinfo));
@@ -509,7 +509,7 @@ int partial_handshake(int *flags_arg) {
     syn_packet = build_packet(syn_packet, flags_ptr, source_ipaddr, dest_ipaddr, &sin);
     
     sin_len = (socklen_t) sizeof(sin);
-    /* Socket configuration.  Tell it we will provide the IPv4 header     */
+    /* Socket configuration.  IP_HDRINCL tells kernel we will also take care of the IP layer     */
     if (setsockopt (sock, IPPROTO_IP, IP_HDRINCL, &on, sizeof(on)) < 0) {
         perror("setsockopt() failed to set IP_HDRINCL ");
         exit(EXIT_FAILURE);
@@ -521,21 +521,23 @@ int partial_handshake(int *flags_arg) {
         exit(EXIT_FAILURE);
     }
 
+	/***************** TODO: TRY REMOVING SENDTO AND JUST RECVFROMIMG ******************/
     /* Send initial TCP Connection Establishment packet (SYN).  */
     if (sendto(sock, syn_packet, IP4_HEADER_LEN + TCP_HEADER_LEN, 0, \
         (struct sockaddr *) &sin, sizeof(struct sockaddr)) < 0)  {
         perror("sendto() failed on SYN ");
         exit(EXIT_FAILURE);
     }
-    
+
     /* Recieve TCP Connection Establishment response packet.  If it is
      * a SYN/ACK, the port is open.  If it is a RST or no response, it 
      * is closed. */
     if (recvfrom(sock, synack_packet, IP_MAXPACKET, 0, (struct sockaddr *) &sin, &sin_len) < 0) {
-        perror("recvfrom() failed on SYN/ACK ");
-        exit(EXIT_FAILURE);
+        printf("failed to recieve anything from socket\n");
     }
+    //recv(sock, synack_packet, IP_MAXPACKET, 0);
     
+    printf("failed to recieve anything from socket\n");
     /* Send TCP Connection Cancellation packet (RST).  */
     if (sendto(sock, syn_packet, IP4_HEADER_LEN + TCP_HEADER_LEN, 0, \
         (struct sockaddr *) &sin, sizeof(struct sockaddr)) < 0)  {
