@@ -1,8 +1,8 @@
 scandalous - Port scanner in C.
 
-This application is not ready for use, and is still being actively developed.
-
 This is an implementation of a port scanner using the C programming language.
+
+so far, it parses a scan type and target.  more to come.
 
 I.  Command line arguments / How to run scandalous
 -s:		specify the scantype.  The available scantypes are "TCPCONN", "SYN",

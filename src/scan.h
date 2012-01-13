@@ -3,27 +3,19 @@
 
 #define MAX_TARGETS 256
 
-enum scan_type
+enum supported_scantypes 
 {
-    PING_SCAN = 1, 
-    SYN_SCAN = 2, 
-    TCP_CONNECT_SCAN = 3, 
-    UDP_SCAN = 4, 
-    FIN_SCAN = 5, 
-    NULL_SCAN = 6, 
-    XMAS_SCAN = 7
+	PING, SYN, TCP, UDP, FIN, NULLSCAN, XMAS
 };
 
 struct scan
 {
-    struct target *victim; /* { sockaddr_in *address, char *name, int type } */
-    enum scan_type scantype; /* */
-    unsigned int flags; /* unimplemented */
-    int sock; /* socket descriptor */
+	struct target *victim; /* { sockaddr_in *address, char *name, int type } */
+	enum supported_scantypes scantype; /* */
+	unsigned int flags; /* unimplemented */
+	int sock; /* socket descriptor */
 };
 
-struct results
-{
-    int *port_status;
-    
-};
+
+
+
