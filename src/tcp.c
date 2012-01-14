@@ -5,38 +5,53 @@
  *	Desc: creates tcp packets and sends them.
  *
  ******************************************************************************/
+ 
+			/* 				[FIN, SYN, RST, PSH, ACK, URG, ECE, CWR] */
+static int SYN_PACKET[] = 	{ 0,   1,   0,   0,   0,   0,   0,   0 };
+static int URGSYN_PACKET[] = { 0,   1,   0,   0,   0,   0,   0,   0 };
+static int ACK_PACKET[] =	{ 0,   0,   0,   0,   1,   0,   0,   0 };
+static int SYNACK_PACKET[] =	{ 0,   1,   0,   0,   1,   0,   0,   0 };
+static int FIN_PACKET[] =	{ 1,   0,   0,   0,   0,   0,   0,   0 };
+static int URGACK_PACKET[] =	{ 0,   0,   0,   0,   1,   1,   0,   0 };
+
+/* 	
+ *  system("iptables -A OUTPUT -p tcp -d 127.0.0.1 -s 127.0.0.1 --dport 80 --tcp-flags RST RST -j LOG");
+ *  system("iptables -A OUTPUT -p tcp -d 127.0.0.1 -s 127.0.0.1 --dport 80 --tcp-flags RST RST -j DROP");
+ *  <----- send packets over raw socket ----->
+ *  system("iptables -A OUTPUT -p tcp -d 127.0.0.1 -s 127.0.0.1 --dport 80 --tcp-flags RST RST -j ACCEPT");
+ * 
+ */
+/* Not yet in use.  commented out to shut gcc up
+static const char *iptables_pre = "iptables -A OUTPUT -p tcp ";
+static const char *iptables_dest = "-d ";
+static const char *iptables_source = "-s ";
+static const char *iptables_dest_port = "--dport ";
+static const char *iptables_post = "--tcp-flags RST RST -j ";
+*/
 
 int main(int argc, char **argv){
 
 
 	system("iptables -A OUTPUT -p tcp -d 127.0.0.1 -s 127.0.0.1 --dport 80 --tcp-flags RST RST -j LOG");
 	system("iptables -A OUTPUT -p tcp -d 127.0.0.1 -s 127.0.0.1 --dport 80 --tcp-flags RST RST -j DROP");
-	int x;
-	/* 				[FIN, SYN, RST, PSH, ACK, URG, ECE, CWR] */
-	int syn[] = 	{ 0,   1,   0,   0,   0,   0,   0,   0 };
-	int urgsyn[] = 	{ 0,   1,   0,   0,   0,   0,   0,   0 };
-	int ack[] =     { 0,   0,   0,   0,   1,   0,   0,   0 };
-	int synack[] =  { 0,   1,   0,   0,   1,   0,   0,   0 };
-	int fin[] =     { 1,   0,   0,   0,   0,   0,   0,   0 };
-	int urgack[] =  { 0,   0,   0,   0,   1,   1,   0,   0 };
-	
+
+	//int x;
+
+	send_packet(SYN_PACKET);
+
+	send_packet(ACK_PACKET);	
 	// test packet builder
 	
-	x = build_tcp_packet(argv[1], syn);
-/*	build_tcp_packet(argv[1], urgsyn);
-	build_tcp_packet(argv[1], synack);
-	build_tcp_packet(argv[1], ack);
-	build_tcp_packet(argv[1], urgack);
-	build_tcp_packet(argv[1], fin);  */
-	build_tcp_packet(argv[1], ack);	
+	//x = build_tcp_packet(argv[1], syn);
+	//build_tcp_packet(argv[1], ack);
 	system("iptables -A OUTPUT -p tcp -d 127.0.0.1 -s 127.0.0.1 --dport 80 --tcp-flags RST RST -j ACCEPT");
 	return 0;
 }
 
-/*******************************************************************************
+/***
  *	unsigned short int chksum(unsigned short int *addr, int length):
  *	computes a checksum for the IP+TCP header it is called on.
- ******************************************************************************/
+ ***/
 unsigned short int compute_chksum(unsigned short int *addr, int length){
 	int nleft = length;
 	int sum = 0;
@@ -224,71 +239,21 @@ unsigned short int tcp_chksum(struct ip ipheader, struct tcphdr tcpheader){
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * |                    Options                    |    Padding    |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- * IHL = Internet Header Lenght
+ * IHL = Internet Header Length: header may contain a variable number of
+ *       options, this field specfies the size of the header.  it's also
+ *       a handy offset to use to access the data segment. Min value is 5
+ *       (RFC791), which is length of 5*32 = 160 bits (20 bytes).  Being
+ *       a 4-bit value, the max length is 15 words = 480 bits (60 bytes).
  * TOS = Precedence:0-2 Delay:3 Throughput:4 Reliability:5 Reserved:6,7
  * Flags = Reserved:0, Don't Fragment (DF):1, More Fragments (MF):2
- * 
  ***/
-int build_tcp_packet(char *iface, int *flags_ptr){
-	int i, status, sock;
-	const int on = 1;
-	char *interface, *target, *source_ipaddr, *dest_ipaddr;
+unsigned char *build_packet(unsigned char *packet, int *flags_ptr, char *source_ipaddr, char *dest_ipaddr, struct sockaddr_in *sin){
+	int i;
 	struct ip ipheader;
 	struct tcphdr tcpheader;
-	unsigned char *ip_flags, *tcp_flags, *packet;
-	struct addrinfo hints, *res;
-	struct sockaddr_in 	*ipv4, sin;
-	struct ifreq ifr;
+	unsigned char *ip_flags, *tcp_flags;
 	void *tmp;
-
-	/* First, allocate some space on the heap for our local variables.  */
-	/*  the actual packet. IP_MAXPACKET = 65,535 */
-	tmp = (unsigned char *) malloc (IP_MAXPACKET * sizeof (unsigned char));
-	if (tmp != NULL) {
-		packet = tmp;
-	} else {
-		fprintf (stderr, "ERROR: Cannot allocate memory for array 'packet'.\n");
-		exit (EXIT_FAILURE);
-	}
-	memset (packet, 0, IP_MAXPACKET);
-
-	/* string for local network interface name (eth0, wlan0, etc.)  */
-	tmp = (char *) malloc (40 * sizeof (char));
-	if (tmp != NULL) {
-		interface = tmp;
-	} else {
-	fprintf (stderr, "ERROR: Cannot allocate memory for array 'interface'.\n");
-	exit (EXIT_FAILURE);
-	}
-	memset (interface, 0, 40);
-
-	/* the actual packet. IP_MAXPACKET 65,535 */
-	tmp = (char *) malloc (40 * sizeof (char));
-	if (tmp != NULL) {
-		target = tmp;
-	} else {
-		fprintf (stderr, "ERROR: Cannot allocate memory for array 'target'.\n");
-		exit (EXIT_FAILURE);
-	}
-	memset (target, 0, 40);
-
-	tmp = (char *) malloc (16 * sizeof (char));
-	if (tmp != NULL) {
-		source_ipaddr = tmp;
-	} else {
-		fprintf (stderr, "ERROR: Cannot allocate memory for array 'source_ipaddr'.\n");
-		exit (EXIT_FAILURE);
-	}
-	memset (source_ipaddr, 0, 16);
-
-	tmp = (char *) malloc (16 * sizeof (char));
-	if (tmp != NULL) {
-		dest_ipaddr = tmp;
-	} else {
-		fprintf (stderr, "ERROR: Cannot allocate memory for array 'dest_ipaddr'.\n");
-		exit (EXIT_FAILURE);
-	}
-	memset (dest_ipaddr, 0, 16);
+	
 
 	tmp = (unsigned char *) malloc (4 * sizeof (char));
 	if (tmp != NULL) {
@@ -307,46 +272,6 @@ int build_tcp_packet(char *iface, int *flags_ptr){
 		exit (EXIT_FAILURE);
 	}
 	memset (tcp_flags, 0, 4);
-
-	strcpy (interface, iface);
-
-	// Submit request for a socket descriptor to lookup interface.
-	if ((sock = socket (AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0) {
-		perror ("socket() failed to get socket descriptor for using ioctl() ");
-		exit (EXIT_FAILURE);
-	}
-
-	/* Use ioctl() to lookup interface. */
-	memset (&ifr, 0, sizeof (ifr));
-	snprintf (ifr.ifr_name, sizeof (ifr.ifr_name), "%s", interface);
-	if (ioctl (sock, SIOCGIFINDEX, &ifr) < 0) {
-		perror ("ioctl() failed to find interface ");
-		return (EXIT_FAILURE);
-	}
-	close (sock);
-	printf ("Index for interface %s is %i\n", interface, ifr.ifr_ifindex);
-
-	/* users IP needs to go here */
-	strcpy (source_ipaddr, "127.0.0.1");
-
-	/* Destination URL or IPv4 address */
-	strcpy (target, "127.0.0.1");
-
-	/* Fill out hints for getaddrinfo(). */
-	memset (&hints, 0, sizeof (struct addrinfo));
-	hints.ai_family = AF_INET;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = hints.ai_flags | AI_CANONNAME;
-
-	// Resolve target using getaddrinfo().
-	if ((status = getaddrinfo (target, NULL, &hints, &res)) != 0) {
-		fprintf (stderr, "getaddrinfo() failed: %s\n", gai_strerror (status));
-		exit (EXIT_FAILURE);
-	}
-	ipv4 = (struct sockaddr_in *) res->ai_addr;
-	tmp = &(ipv4->sin_addr);
-	inet_ntop (AF_INET, tmp, dest_ipaddr, 16);
-	freeaddrinfo (res);
 
 	/*** START IPv4 HEADER ***/
 	/* Internet Header Length: the number of 32-bit words in the header.     *
@@ -451,9 +376,9 @@ int build_tcp_packet(char *iface, int *flags_ptr){
 	}
 	// Window size (16 bits)
 	tcpheader.th_win = htons (65535);
-	// Urgent pointer (16 bits): 0 (only valid if URG flag is set)
+	/* Urgent pointer (16 bits): 0 (only valid if URG flag is set) */
 	tcpheader.th_urp = htons (0);
-	// TCP checksum (16 bits)
+	/* TCP checksum (16 bits) */
 	tcpheader.th_sum = tcp_chksum (ipheader, tcpheader);
 	/* Prep the packet to be sent. */
 	/* First thing in the packet is the IPv4 header. */
@@ -463,17 +388,127 @@ int build_tcp_packet(char *iface, int *flags_ptr){
 	/* Let kernel take care of ethernet header.  It is not revelant for our   *
 	 * purposes. Pass destination IP to kernel.  To do this, we can create a  *
 	 * struct in_addr for the destination IP and pass it to sendto().		  */
-	memset (&sin, 0, sizeof (struct sockaddr_in));
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = ipheader.ip_dst.s_addr;
-	/* Get a socket (Raw).  */
+	memset (sin, 0, sizeof (struct sockaddr_in));
+	sin->sin_family = AF_INET;
+	sin->sin_addr.s_addr = ipheader.ip_dst.s_addr;
+
+
+	//recvfrom(sock, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen);
+
+	free (ip_flags);
+	free (tcp_flags);
+	return packet;
+}
+
+/***
+ *	void send_packet(int *flags_arg):
+ *	takes care of sending a packet
+ ***/
+void send_packet(int *flags_arg) {
+
+	int status, sock, flags_ptr[] = {0, 0, 0, 0, 0, 0, 0, 0};
+	const int on = 1;
+	char *interface, *target, *source_ipaddr, *dest_ipaddr;
+	unsigned char *packet;
+	struct addrinfo hints, *res;
+	struct sockaddr_in 	*ipv4, sin;
+	struct ifreq ifr;
+	void *tmp;
+	char *ifce = "lo";
+
+	memcpy(flags_ptr, flags_arg, sizeof(int)*8);
+	/* Memory allocations  */
+	/*  the actual packet. IP_MAXPACKET = 65,535 */
+	tmp = (unsigned char *) malloc (IP_MAXPACKET * sizeof (unsigned char));
+	if (tmp != NULL) {
+		packet = tmp;
+	} else {
+		fprintf (stderr, "ERROR: Cannot allocate memory for array 'packet'.\n");
+		exit (EXIT_FAILURE);
+	}
+	memset (packet, 0, IP_MAXPACKET);
+	/* string for local network interface name (eth0, wlan0, etc.)  */
+	tmp = (char *) malloc (40 * sizeof (char));
+	if (tmp != NULL) {
+		interface = tmp;
+	} else {
+	fprintf (stderr, "ERROR: Cannot allocate memory for array 'interface'.\n");
+	exit (EXIT_FAILURE);
+	}
+	memset (interface, 0, 40);
+
+	strcpy(interface, ifce);
+
+	tmp = (char *) malloc (40 * sizeof (char));
+	if (tmp != NULL) {
+		target = tmp;
+	} else {
+		fprintf (stderr, "ERROR: Cannot allocate memory for array 'target'.\n");
+		exit (EXIT_FAILURE);
+	}
+	memset (target, 0, 40);
+
+	tmp = (char *) malloc (16 * sizeof (char));
+	if (tmp != NULL) {
+		source_ipaddr = tmp;
+	} else {
+		fprintf (stderr, "ERROR: Cannot allocate memory for array 'source_ipaddr'.\n");
+		exit (EXIT_FAILURE);
+	}
+	memset (source_ipaddr, 0, 16);
+
+	tmp = (char *) malloc (16 * sizeof (char));
+	if (tmp != NULL) {
+		dest_ipaddr = tmp;
+	} else {
+		fprintf (stderr, "ERROR: Cannot allocate memory for array 'dest_ipaddr'.\n");
+		exit(EXIT_FAILURE);
+	}
+	memset (dest_ipaddr, 0, 16);
+	
+	/* Now we create a socket and get the network interface to use SOCKET_RAW */
 	if ((sock = socket (AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0) {
-		perror ("socket() failed ");
+		perror ("socket() failed to get socket descriptor for using ioctl() ");
 		exit (EXIT_FAILURE);
 	}
 
-	/* Socket configuration.  Tell it we will provide the IP(v4) 	  *
-	 * header.																  */
+	/* Use ioctl() to lookup interface. We NEED the ifr for SOCKET_RAW. */
+	memset (&ifr, 0, sizeof (ifr));
+	snprintf (ifr.ifr_name, sizeof (ifr.ifr_name), "%s", interface);
+	if (ioctl (sock, SIOCGIFINDEX, &ifr) < 0) {
+		perror ("ioctl() failed to find interface ");
+		exit(EXIT_FAILURE);
+	}
+	
+	printf ("Index for interface %s is %i\n", interface, ifr.ifr_ifindex);
+	
+	/* users IP needs to go here */
+	strcpy (source_ipaddr, "127.0.0.1");
+
+	/* Destination URL or IPv4 address */
+	strcpy (target, "127.0.0.1");
+
+	/* Fill out hints for getaddrinfo(). */
+	memset (&hints, 0, sizeof (struct addrinfo));
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = hints.ai_flags | AI_CANONNAME;
+
+	// Resolve target using getaddrinfo().
+	if ((status = getaddrinfo (target, NULL, &hints, &res)) != 0) {
+		fprintf (stderr, "getaddrinfo() failed: %s\n", gai_strerror (status));
+		exit (EXIT_FAILURE);
+	}
+	ipv4 = (struct sockaddr_in *) res->ai_addr;
+	tmp = &(ipv4->sin_addr);
+	inet_ntop (AF_INET, tmp, dest_ipaddr, 16);
+	freeaddrinfo (res);
+	
+	
+	packet = build_packet(packet, flags_ptr, source_ipaddr, dest_ipaddr, &sin);
+	
+
+	/* Socket configuration.  Tell it we will provide the IPv4 header	  */
 	if (setsockopt (sock, IPPROTO_IP, IP_HDRINCL, &on, sizeof (on)) < 0) {
 		perror ("setsockopt() failed to set IP_HDRINCL ");
 		exit (EXIT_FAILURE);
@@ -485,24 +520,18 @@ int build_tcp_packet(char *iface, int *flags_ptr){
 		exit (EXIT_FAILURE);
 	}
 
-	/* use sendto() to send the packet out. */ 
+	/* use sendto() to send the packet out.
+	 * NOTE: use this to get the target's reply.
+	 * recvfrom(sock, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen); */
 	if (sendto (sock, packet, IP4_HEADER_LEN + TCP_HEADER_LEN, 0, \
 		(struct sockaddr *) &sin, sizeof (struct sockaddr)) < 0)  {
 		perror ("sendto() failed ");
 		exit (EXIT_FAILURE);
 	}
-	printf("packet sent!\n");
-
-	/* Close socket descriptor. */
-	close (sock);
-
-	/* Free allocated memory. */
-	free (packet);
-	free (interface);
+	free(packet);
 	free (target);
 	free (source_ipaddr);
 	free (dest_ipaddr);
-	free (ip_flags);
-	free (tcp_flags);
-	return (EXIT_SUCCESS);
+	free (interface);	
+	
 }
