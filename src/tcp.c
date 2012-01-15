@@ -32,15 +32,14 @@ static const char *iptables_post = "--tcp-flags RST RST -j ";
 */
 
 int main(int argc, char **argv){
-    system("iptables -A OUTPUT -p tcp -d 127.0.0.1 -s 127.0.0.1 --dport 80 --tcp-flags RST RST -j LOG");
-    system("iptables -A OUTPUT -p tcp -d 127.0.0.1 -s 127.0.0.1 --dport 80 --tcp-flags RST RST -j DROP");
-
+    system("iptables -A OUTPUT -p tcp -s 192.168.1.104 -d 192.168.1.113 --dport 80 --tcp-flags RST RST -j LOG");
+    system("iptables -A OUTPUT -p tcp -s 192.168.1.104 -d 192.168.1.113  --dport 80 --tcp-flags RST RST -j DROP");
     struct target *t;
     t = (struct target *) malloc (sizeof(struct target));
 
     partial_handshake();  
     
-    system("iptables -A OUTPUT -p tcp -d 127.0.0.1 -s 127.0.0.1 --dport 80 --tcp-flags RST RST -j ACCEPT");
+    system("iptables --flush");
     return 0;
 }
 
@@ -388,7 +387,7 @@ unsigned char *build_packet(unsigned char *packet, int *flags_ptr, char *source_
  ***/
 int partial_handshake(int *flags_arg) {
 
-    int status, sock, flags_ptr[] = {0, 0, 0, 0, 0, 0, 0, 0};
+    int status, sock, flags_ptr[] = {0, 0, 0, 0, 0, 0, 0, 0}, bytes_recvd = 0;
     const int on = 1;
     char *interface, *target_ipaddr, *source_ipaddr, *dest_ipaddr;
     unsigned char *syn_packet, *synack_packet, *rst_packet;
@@ -397,7 +396,7 @@ int partial_handshake(int *flags_arg) {
     socklen_t sin_len;
     struct ifreq ifr;
     void *tmp;
-    char *ifce = "lo";
+    char *ifce = "eth1";
 
     memcpy(flags_ptr, SYN_PACKET_FLAGS, sizeof(int)*8);
     /* Memory allocations  */
@@ -468,7 +467,7 @@ int partial_handshake(int *flags_arg) {
     memset(dest_ipaddr, 0, 16);
     
     /* Now we create a socket and get the network interface to use SOCKET_RAW */
-    if ((sock = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0) {
+    if ((sock = socket(AF_INET, SOCK_RAW, IPPROTO_TCP)) < 0) {
         perror("socket() failed to get socket descriptor for using ioctl() ");
         exit(EXIT_FAILURE);
     }
@@ -484,10 +483,10 @@ int partial_handshake(int *flags_arg) {
     printf ("Index for interface %s is %i\n", interface, ifr.ifr_ifindex);
     
     /* users IP needs to go here */
-    strcpy(source_ipaddr, "127.0.0.1");
+    strcpy(source_ipaddr, "192.168.1.104");
 
     /* Destination URL or IPv4 address */
-    strcpy(target_ipaddr, "127.0.0.1");
+    strcpy(target_ipaddr, "192.168.1.113");
 
     /* Fill out hints for getaddrinfo(). */
     memset(&hints, 0, sizeof(struct addrinfo));
@@ -531,18 +530,13 @@ int partial_handshake(int *flags_arg) {
     /* Recieve TCP Connection Establishment response packet.  If it is
      * a SYN/ACK, the port is open.  If it is a RST or no response, it 
      * is closed. */
-    if (recvfrom(sock, synack_packet, IP_MAXPACKET, 0, (struct sockaddr *) &sin, &sin_len) < 0) {
+    bytes_recvd = recvfrom(sock, synack_packet, IP_MAXPACKET, 0, (struct sockaddr *) &sin, &sin_len);
+    if (bytes_recvd < 0) {
         perror("recvfrom() failed on SYN/ACK ");
         exit(EXIT_FAILURE);
     }
-    
-    /* Send TCP Connection Cancellation packet (RST).  */
-    if (sendto(sock, syn_packet, IP4_HEADER_LEN + TCP_HEADER_LEN, 0, \
-        (struct sockaddr *) &sin, sizeof(struct sockaddr)) < 0)  {
-        perror("sendto() failed on SYN ");
-        exit(EXIT_FAILURE);
-    }    
-    
+    printf("recvd %d bytes!\n", bytes_recvd);
+    get_packet_type(&synack_packet);
     close(sock);
     free(syn_packet);
     free(synack_packet);
@@ -554,4 +548,22 @@ int partial_handshake(int *flags_arg) {
     return (EXIT_SUCCESS);
 }
 
+int get_packet_type(unsigned char **packet) {
+
+    unsigned char flags;
+    int flags_offset = 0x21;
+    memcpy(&flags, ((*packet) + flags_offset), 1);
+    if ((flags & SYNACK_MASK) == flags) {
+        printf("port 80 is open BIAAAAATCH!\n");
+        return 2;
+    }
+    else if ((flags & RSTACK_MASK) == flags) {
+        printf("port 80 is closed!\n");
+        return 1;
+    }
+    else {
+        printf("port 80 is not known!\n");
+        return 3;   
+    }
+}
 

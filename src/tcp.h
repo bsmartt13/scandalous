@@ -32,12 +32,25 @@ enum packet_type
     SYN_PACKET = 1, SYNACK_PACKET = 2, RST_PACKET = 3, FIN_PACKET = 4 
 };
 
+
+#define FIN_MASK 0x1
+#define SYN_MASK 0x2
+#define RST_MASK 0x4
+#define PSH_MASK 0x8
+#define ACK_MASK 0x10
+#define URG_MASK 0x20
+#define ECE_MASK 0x40
+#define CON_MASK 0x80
+
+#define SYNACK_MASK 0x12
+#define RSTACK_MASK 0x14
+
 // Function declarations
 unsigned short int compute_chksum(unsigned short int *addr, int length);
 unsigned short int build_chksum(struct ip ipheader, struct tcphdr tcpheader);
 unsigned char *build_packet(unsigned char *packet, int *flags_ptr, char *source_ipaddr, char *dest_ipaddr, struct sockaddr_in *sin);
 int partial_handshake();
-
+int get_packet_type(unsigned char **packet);
 /***
  *
  * September 1981                                                          
