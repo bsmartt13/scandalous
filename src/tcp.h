@@ -57,7 +57,7 @@ unsigned short int build_chksum(struct ip ipheader, struct tcphdr tcpheader);
 unsigned char *build_packet(unsigned char *packet, int *flags_ptr, char *source_ipaddr, char *dest_ipaddr, struct sockaddr_in *sin);
 int partial_handshake();
 int get_packet_type(unsigned char **packet);
-void print_ip(char iface[], char **buffer);
+void get_extern_ip(char iface[], char **buffer);
 /***
  *
  * September 1981                                                          

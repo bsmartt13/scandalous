@@ -19,29 +19,29 @@
  * Internet" presentation (Summer 2008). Thanks Fyodor!
  */
 static const unsigned short top20_tcp_ports[] = {   80,     /* HTTP */
-                                                    23,     /* Telnet */
-                                                    443,    /* HTTPS */
-                                                    21,     /* FTP */
-                                                    22,     /* SSH */ 
-                                                    25,     /* SMTP */
-                                                    3389,   /* ms-term-serv */
-                                                    110,    /* POP3 */
-                                                    445,    /* Microsoft-DS */
-                                                    139,    /* NetBIOS-SSN */
-                                                    143,    /* IMAP */
-                                                    53,     /* DNS */
-                                                    135,    /* MySQL */
-                                                    3306,   /* HTTP-Proxy */
-                                                    8080,   /* PPTP */
-                                                    1723,   /* RPCBind */
-                                                    111,    /* POP3S */
-                                                    995,    /* IMAPS */
-                                                    5900,   /* VNC */
-                                                };
-
+                        23,     /* Telnet */
+                        443,    /* HTTPS */
+                        21,     /* FTP */
+                        22,     /* SSH */ 
+                        25,     /* SMTP */
+                        3389,   /* ms-term-serv */
+                        110,    /* POP3 */
+                        445,    /* Microsoft-DS */
+                        139,    /* NetBIOS-SSN */
+                        143,    /* IMAP */
+                        53,     /* DNS */
+                        135,    /* MySQL */
+                        3306,   /* HTTP-Proxy */
+                        8080,   /* PPTP */
+                        1723,   /* RPCBind */
+                        111,    /* POP3S */
+                        995,    /* IMAPS */
+                        5900,   /* VNC */
+};
+/**/
 struct host
 {
-    struct sockaddr_in *addr;
+    struct sockaddr_in *addr_in;
     char *ipaddr;
     unsigned short *ports;
     unsigned int num_ports;     // length of ports array
@@ -57,6 +57,8 @@ struct target
 };
 
 /* target.c function declarations */
-struct target *allocate_target();
-
-
+struct target *allocate_target(char *iface);
+void get_local_ip(char iface[], char **buffer, size_t buflen);
+/* int set_host_type(struct *host h, int type);
+void get_local_ip(char iface[], char **buffer, size_t buflen);
+*/

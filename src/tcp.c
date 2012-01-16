@@ -1,13 +1,42 @@
 #include "tcp.h"
+/* Copyright (c) 2012, Bill Smartt
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 4. Neither the name of this program nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
 
-/*******************************************************************************
+/*****
  *  File: tcp.c
- *  Desc: Barebones TCP and IP Stacks.
+ *  Description: Barebones TCP/IP Stack
+ *  Author: Bill Smartt <bsmartt13@gmail.com>
  *  Current status: partial_handshake() takes care of sending a packet to the *
  *    target and getting the response.  It then calls get_packet_type() to    *
- *    determine whether the port is open or closed.
- ******************************************************************************/
- 
+ *    determine whether the port is open or closed. This is the basic         *
+ *    algorithm for a syn (stealth) scan.
+ *****/
+
 
 /*  the linux kernel will send RST packet out right behind anything we 
  *  do that's not using the built-in TCP stack.  use iptables filtering
@@ -420,7 +449,6 @@ int partial_handshake(int *flags_arg) {
     }
     bzero(rst_pkt, IP_MAXPACKET); /*same as memset (rst_pkt, 0, IP_MAXPACKET); */
 
-    
     /* string for local network interface name (eth0, wlan0, etc.)  */
     tmp = (char *) malloc (40 * sizeof(char));
     if (tmp != NULL) {
@@ -472,13 +500,11 @@ int partial_handshake(int *flags_arg) {
         perror("ioctl() failed to find interface ");
         exit(EXIT_FAILURE);
     }
-
-    printf("interface %i is %s\n", ifr.ifr_ifindex, interface);
-    /* users IP needs to go here */
-    print_ip(ifr.ifr_name, &source_ipaddr);
-    printf("back in partial handshake ip is %s\n", source_ipaddr);
-    //strcpy(source_ipaddr, "192.168.1.104");
-
+    get_extern_ip(ifr.ifr_name, &source_ipaddr);
+#ifdef DEBUG
+    printf("interface %i is %s (%s)\n", \
+        ifr.ifr_ifindex, interface, source_ipaddr);
+#endif
     /* Destination URL or IPv4 address */
     strcpy(target_ipaddr, "192.168.1.113");
 
@@ -498,38 +524,42 @@ int partial_handshake(int *flags_arg) {
     inet_ntop (AF_INET, tmp, dest_ipaddr, 16);
     freeaddrinfo(res);
     
+    /* craft a packet to send to target */
+    probe_pkt = build_packet(probe_pkt, flags_ptr, source_ipaddr, \
+        dest_ipaddr, &sin);
     
-    probe_pkt = build_packet(probe_pkt, flags_ptr, source_ipaddr, dest_ipaddr, &sin);
-    
-    sin_len = (socklen_t) sizeof(sin);
+ 
     /* Socket configuration.  Tell it we will provide the IPv4 header     */
     if (setsockopt (sock, IPPROTO_IP, IP_HDRINCL, &on, sizeof(on)) < 0) {
         perror("setsockopt() failed to set IP_HDRINCL ");
         exit(EXIT_FAILURE);
     }
-
     /* Bind socket to specified interface. */
     if (setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, &ifr, sizeof(ifr)) < 0) {
         perror("setsockopt() failed to bind to interface ");
         exit(EXIT_FAILURE);
     }
 
-    /* Send initial TCP Connection Establishment packet (SYN).  */
+    /* Send initial TCP three-way handshake packet (SYN).  */
     if (sendto(sock, probe_pkt, IP4_HEADER_LEN + TCP_HEADER_LEN, 0, \
         (struct sockaddr *) &sin, sizeof(struct sockaddr)) < 0)  {
         perror("sendto() failed on SYN ");
         exit(EXIT_FAILURE);
     }
     
-    /* Recieve TCP Connection Establishment response packet.  If it is
+    /* Recieve TCP three-way handshake response packet.  If it is
      * a SYN/ACK, the port is open.  If it is a RST or no response, it 
      * is closed. */
-    bytes_recvd = recvfrom(sock, response_pkt, IP_MAXPACKET, 0, (struct sockaddr *) &sin, &sin_len);
+    sin_len = (socklen_t) sizeof(sin);
+    bytes_recvd = recvfrom(sock, response_pkt, IP_MAXPACKET, 0, \
+        (struct sockaddr *) &sin, &sin_len);
     if (bytes_recvd < 0) {
         perror("recvfrom() failed on SYN/ACK ");
         exit(EXIT_FAILURE);
     }
+#ifdef DEBUG
     printf("recvd %d bytes!\n", bytes_recvd);
+#endif
     get_packet_type(&response_pkt);
     close(sock);
     free(probe_pkt);
@@ -542,6 +572,10 @@ int partial_handshake(int *flags_arg) {
     return (EXIT_SUCCESS);
 }
 
+/***
+ *  int get_packet_type(unsigned char **packet):
+ *  uses bitmasks to identify the flags inside the TCP header of the file.  
+ ***/
 int get_packet_type(unsigned char **packet) {
 
     unsigned char flags;
@@ -561,13 +595,18 @@ int get_packet_type(unsigned char **packet) {
     }
 }
 
-void print_ip(char iface[], char **buffer) {
+/***
+ *  void get_extern_ip(char iface[], char **buffer):
+ *  calls the bash command `ifconfig <iface>` and pulls the external ip it finds
+ ***/
+void get_extern_ip(char iface[], char **buffer) {
     char *cmd;
     cmd = (char *) malloc (sizeof(char) * 20);
     snprintf(cmd, 20, "ifconfig %s", iface);
     FILE *fp = popen(cmd, "r");
     if (fp) {
-        char *p=NULL, *e; size_t n;
+        char *p = NULL, *e; 
+        size_t n;
         while ((getline(&p, &n, fp) > 0) && p) {
             if (p = strstr(p, "inet addr:")) {
                 p+=10;
@@ -576,10 +615,12 @@ void print_ip(char iface[], char **buffer) {
                     printf("PRINT IP: %s\n", p);
                     snprintf(*buffer, 20, "%s", p);
                 }
+            } else {
+                perror("get_extern_ip() failed to get external ip using `ifconfig <iface>` ");
+                exit(EXIT_FAILURE);
             }
         }
     }
     free(cmd);
     pclose(fp);
-    //return buffer;
 }
