@@ -2,18 +2,13 @@
 
 /*******************************************************************************
  *  File: tcp.c
- *  Desc: creates tcp packets and sends them.
- *
+ *  Desc: Barebones TCP and IP Stacks.
+ *  Current status: partial_handshake() takes care of sending a packet to the *
+ *    target and getting the response.  It then calls get_packet_type() to    *
+ *    determine whether the port is open or closed.
  ******************************************************************************/
  
-                  /*               [FIN, SYN, RST, PSH, ACK, URG, ECE, CWR] */
-static int SYN_PACKET_FLAGS[] =    { 0,   1,   0,   0,   0,   0,   0,   0 };
-static int URGSYN_PACKET_FLAGS[] = { 0,   1,   0,   0,   0,   0,   0,   0 };
-static int ACK_PACKET_FLAGS[] =    { 0,   0,   0,   0,   1,   0,   0,   0 };
-static int SYNACK_PACKET_FLAGS[] = { 0,   1,   0,   0,   1,   0,   0,   0 };
-static int FIN_PACKET_FLAGS[] =    { 1,   0,   0,   0,   0,   0,   0,   0 };
-static int URGACK_PACKET_FLAGS[] = { 0,   0,   0,   0,   1,   1,   0,   0 };
-static int RST_PACKET_FLAGS[] = { 0,   0,   1,   0,   0,   0,   0,   0 };
+
 /*  the linux kernel will send RST packet out right behind anything we 
  *  do that's not using the built-in TCP stack.  use iptables filtering
  *  to drop all these packets.
@@ -23,13 +18,6 @@ static int RST_PACKET_FLAGS[] = { 0,   0,   1,   0,   0,   0,   0,   0 };
  *  system("iptables -A OUTPUT -p tcp -d 127.0.0.1 -s 127.0.0.1 --dport 80 --tcp-flags RST RST -j ACCEPT");
  * 
  */
-/* Not yet in use.  commented out to shut gcc up
-static const char *iptables_pre = "iptables -A OUTPUT -p tcp ";
-static const char *iptables_dest = "-d ";
-static const char *iptables_source = "-s ";
-static const char *iptables_dest_port = "--dport ";
-static const char *iptables_post = "--tcp-flags RST RST -j ";
-*/
 
 int main(int argc, char **argv){
     system("iptables -A OUTPUT -p tcp -s 192.168.1.104 -d 192.168.1.113 --dport 80 --tcp-flags RST RST -j LOG");
@@ -382,15 +370,18 @@ unsigned char *build_packet(unsigned char *packet, int *flags_ptr, char *source_
 }
 
 /***
- *  void send_packet(int *flags_arg):
- *  takes care of sending a packet
+ *  int partial_handshake(int *flags_arg):                                    *
+ *  Creates a socket for the target and initiates a TCP three-way handshake.  * 
+ *  1.  Send SYN packet to target.
+ *  2.  Wait to recv from target
+ *  3.  Decode packet type and determine whether the port is open or closed.aaaa
  ***/
 int partial_handshake(int *flags_arg) {
 
     int status, sock, flags_ptr[] = {0, 0, 0, 0, 0, 0, 0, 0}, bytes_recvd = 0;
     const int on = 1;
     char *interface, *target_ipaddr, *source_ipaddr, *dest_ipaddr;
-    unsigned char *syn_packet, *synack_packet, *rst_packet;
+    unsigned char *probe_pkt, *response_pkt, *rst_pkt;
     struct addrinfo hints, *res;
     struct sockaddr_in  *ipv4, sin;
     socklen_t sin_len;
@@ -400,41 +391,43 @@ int partial_handshake(int *flags_arg) {
 
     memcpy(flags_ptr, SYN_PACKET_FLAGS, sizeof(int)*8);
     /* Memory allocations  */
-    /*  the syn_packet. IP_MAXPACKET = 65,535 */
+    /*  the initial SYN packet to send the targets way. IP_MAXPACKET = 65,535 */
     tmp = (unsigned char *) malloc (IP_MAXPACKET * sizeof (unsigned char));
     if (tmp != NULL) {
-        syn_packet = tmp;
+        probe_pkt = tmp;
     } else {
-        fprintf (stderr, "ERROR: Cannot allocate memory for array 'syn_packet'.\n");
+        fprintf (stderr, "ERROR: Cannot allocate memory for array 'probe_pkt'.\n");
         exit (EXIT_FAILURE);
     }
-    memset (syn_packet, 0, IP_MAXPACKET);
+    bzero(probe_pkt, IP_MAXPACKET); /* same as memset (syn_packet, 0, IP_MAXPACKET); */
+    
+    /*  the target's response. IP_MAXPACKET = 65,535 */    
+    tmp = (unsigned char *) malloc (IP_MAXPACKET * sizeof (unsigned char));
+    if (tmp != NULL) {
+        response_pkt = tmp;
+    } else {
+        fprintf (stderr, "ERROR: Cannot allocate memory for array 'response_pkt'.\n");
+        exit (EXIT_FAILURE);
+    }
+    bzero(response_pkt, IP_MAXPACKET); /*same as memset (response_pkt, 0, IP_MAXPACKET); */
     
     tmp = (unsigned char *) malloc (IP_MAXPACKET * sizeof (unsigned char));
     if (tmp != NULL) {
-        synack_packet = tmp;
+        rst_pkt = tmp;
     } else {
-        fprintf (stderr, "ERROR: Cannot allocate memory for array 'synack_packet'.\n");
+        fprintf (stderr, "ERROR: Cannot allocate memory for array 'rst_pkt'.\n");
         exit (EXIT_FAILURE);
     }
-    memset (synack_packet, 0, IP_MAXPACKET);   
-    
-    tmp = (unsigned char *) malloc (IP_MAXPACKET * sizeof (unsigned char));
-    if (tmp != NULL) {
-        rst_packet = tmp;
-    } else {
-        fprintf (stderr, "ERROR: Cannot allocate memory for array 'rst_packet'.\n");
-        exit (EXIT_FAILURE);
-    }
-    memset (rst_packet, 0, IP_MAXPACKET);  
+    bzero(rst_pkt, IP_MAXPACKET); /*same as memset (rst_pkt, 0, IP_MAXPACKET); */
+
     
     /* string for local network interface name (eth0, wlan0, etc.)  */
     tmp = (char *) malloc (40 * sizeof(char));
     if (tmp != NULL) {
         interface = tmp;
     } else {
-    fprintf(stderr, "ERROR: Cannot allocate memory for array 'interface'.\n");
-    exit(EXIT_FAILURE);
+        fprintf(stderr, "ERROR: Cannot allocate memory for array 'interface'.\n");
+        exit(EXIT_FAILURE);
     }
     memset(interface, 0, 40);
     strcpy(interface, ifce);
@@ -479,11 +472,12 @@ int partial_handshake(int *flags_arg) {
         perror("ioctl() failed to find interface ");
         exit(EXIT_FAILURE);
     }
-    
-    printf ("Index for interface %s is %i\n", interface, ifr.ifr_ifindex);
-    
+
+    printf("interface %i is %s\n", ifr.ifr_ifindex, interface);
     /* users IP needs to go here */
-    strcpy(source_ipaddr, "192.168.1.104");
+    print_ip(ifr.ifr_name, &source_ipaddr);
+    printf("back in partial handshake ip is %s\n", source_ipaddr);
+    //strcpy(source_ipaddr, "192.168.1.104");
 
     /* Destination URL or IPv4 address */
     strcpy(target_ipaddr, "192.168.1.113");
@@ -505,7 +499,7 @@ int partial_handshake(int *flags_arg) {
     freeaddrinfo(res);
     
     
-    syn_packet = build_packet(syn_packet, flags_ptr, source_ipaddr, dest_ipaddr, &sin);
+    probe_pkt = build_packet(probe_pkt, flags_ptr, source_ipaddr, dest_ipaddr, &sin);
     
     sin_len = (socklen_t) sizeof(sin);
     /* Socket configuration.  Tell it we will provide the IPv4 header     */
@@ -521,7 +515,7 @@ int partial_handshake(int *flags_arg) {
     }
 
     /* Send initial TCP Connection Establishment packet (SYN).  */
-    if (sendto(sock, syn_packet, IP4_HEADER_LEN + TCP_HEADER_LEN, 0, \
+    if (sendto(sock, probe_pkt, IP4_HEADER_LEN + TCP_HEADER_LEN, 0, \
         (struct sockaddr *) &sin, sizeof(struct sockaddr)) < 0)  {
         perror("sendto() failed on SYN ");
         exit(EXIT_FAILURE);
@@ -530,17 +524,17 @@ int partial_handshake(int *flags_arg) {
     /* Recieve TCP Connection Establishment response packet.  If it is
      * a SYN/ACK, the port is open.  If it is a RST or no response, it 
      * is closed. */
-    bytes_recvd = recvfrom(sock, synack_packet, IP_MAXPACKET, 0, (struct sockaddr *) &sin, &sin_len);
+    bytes_recvd = recvfrom(sock, response_pkt, IP_MAXPACKET, 0, (struct sockaddr *) &sin, &sin_len);
     if (bytes_recvd < 0) {
         perror("recvfrom() failed on SYN/ACK ");
         exit(EXIT_FAILURE);
     }
     printf("recvd %d bytes!\n", bytes_recvd);
-    get_packet_type(&synack_packet);
+    get_packet_type(&response_pkt);
     close(sock);
-    free(syn_packet);
-    free(synack_packet);
-    free(rst_packet);
+    free(probe_pkt);
+    free(response_pkt);
+    free(rst_pkt);
     free(interface);
     free(target_ipaddr);
     free(source_ipaddr);
@@ -567,3 +561,25 @@ int get_packet_type(unsigned char **packet) {
     }
 }
 
+void print_ip(char iface[], char **buffer) {
+    char *cmd;
+    cmd = (char *) malloc (sizeof(char) * 20);
+    snprintf(cmd, 20, "ifconfig %s", iface);
+    FILE *fp = popen(cmd, "r");
+    if (fp) {
+        char *p=NULL, *e; size_t n;
+        while ((getline(&p, &n, fp) > 0) && p) {
+            if (p = strstr(p, "inet addr:")) {
+                p+=10;
+                if (e = strchr(p, ' ')) {
+                    *e='\0';
+                    printf("PRINT IP: %s\n", p);
+                    snprintf(*buffer, 20, "%s", p);
+                }
+            }
+        }
+    }
+    free(cmd);
+    pclose(fp);
+    //return buffer;
+}

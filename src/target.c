@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
 	t = allocate_target();
 	
 	t->source_h->ipaddr = (char *) malloc (sizeof (char) * 16);
-	t->source_h->ipaddr = "192.168.100.100";
+	t->source_h->ipaddr = "192.168.100.104";
 
 	printf("t->src->ip: %s\n", t->source_h->ipaddr);
 	return 0;

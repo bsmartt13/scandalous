@@ -4,7 +4,6 @@
 #include <stdlib.h> /* atoi(), exit() */
 #include <unistd.h> /* close() */
 
-
 #include "scan.h"
 
 //function declarations

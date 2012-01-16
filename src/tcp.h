@@ -1,7 +1,3 @@
-//#include <stdio.h>      /* printf(), scanf() fflush() stdin/out/err, NULL, size_t */
-//#include <stdlib.h>     /* malloc(), calloc(), free(), exit(), */
-//#include <unistd.h>     /* close() */
-//#include <string.h>     /* str(n)cpy(), strlen(), memcmp/cpy/set() strtok(), strstr() */
 #include <netdb.h>      /* for addrinfo */
 #include <sys/types.h>  /* for socket() , pthread, time_t*/
 #include <sys/socket.h> /* socket() */
@@ -32,7 +28,7 @@ enum packet_type
     SYN_PACKET = 1, SYNACK_PACKET = 2, RST_PACKET = 3, FIN_PACKET = 4 
 };
 
-
+/* These are used to identify tcp packet control bits (flags).  */
 #define FIN_MASK 0x1
 #define SYN_MASK 0x2
 #define RST_MASK 0x4
@@ -45,12 +41,23 @@ enum packet_type
 #define SYNACK_MASK 0x12
 #define RSTACK_MASK 0x14
 
+/* these are used for the tcpheader struct. */
+                  /*               [FIN, SYN, RST, PSH, ACK, URG, ECE, CWR] */
+static int SYN_PACKET_FLAGS[] =    { 0,   1,   0,   0,   0,   0,   0,   0 };
+static int URGSYN_PACKET_FLAGS[] = { 0,   1,   0,   0,   0,   0,   0,   0 };
+static int ACK_PACKET_FLAGS[] =    { 0,   0,   0,   0,   1,   0,   0,   0 };
+static int SYNACK_PACKET_FLAGS[] = { 0,   1,   0,   0,   1,   0,   0,   0 };
+static int FIN_PACKET_FLAGS[] =    { 1,   0,   0,   0,   0,   0,   0,   0 };
+static int URGACK_PACKET_FLAGS[] = { 0,   0,   0,   0,   1,   1,   0,   0 };
+static int RST_PACKET_FLAGS[] = { 0,   0,   1,   0,   0,   0,   0,   0 };
+
 // Function declarations
 unsigned short int compute_chksum(unsigned short int *addr, int length);
 unsigned short int build_chksum(struct ip ipheader, struct tcphdr tcpheader);
 unsigned char *build_packet(unsigned char *packet, int *flags_ptr, char *source_ipaddr, char *dest_ipaddr, struct sockaddr_in *sin);
 int partial_handshake();
 int get_packet_type(unsigned char **packet);
+void print_ip(char iface[], char **buffer);
 /***
  *
  * September 1981                                                          
