@@ -13,14 +13,14 @@
  *  helper functions to parse individual arguments.  Parsing the target IP is more
  *  complex, so it sits in it's own file, parse_target.c|h.  
  */
-int parse_arguments(int argc, char **argv){
+struct scan *parse_arguments(int argc, char **argv, struct scan *s){
 	int index = 0, valid_args = 0, targets_found = 0;
-	char *scan_op = NULL, *target_op = NULL;
+	char *scan_op = NULL, *target_op = NULL, *iface_op = NULL;
 	int c;
     struct target *t;
-    t = (struct target *) malloc (sizeof(struct target));
+    //allocate_target();
 	
-	while ((c = getopt (argc, argv, "s:t:")) != -1)
+	while ((c = getopt (argc, argv, "s:i:t:")) != -1)
 		switch (c){
 			case 's':
 				scan_op = optarg;
@@ -30,23 +30,31 @@ int parse_arguments(int argc, char **argv){
 				target_op = optarg;
 				valid_args++;
 				break;
+            case 'i':
+                iface_op = optarg;
+                valid_args++;
+                break;
 			case '?':
-				if (optopt == 's')
+				if (optopt == 's') {
 					fprintf (stderr, "Option -%c requires an argument (scan \
 						type).\n", optopt);
-				else if (optopt == 't'){
+				} else if (optopt == 't') {
 					fprintf(stderr, "Option -%c requires an argument (ip \
 						address in for x.x.x.x)", optopt);
-				}
-				else if (isprint (optopt))
+				} else if (optopt == 'i') {
+				    fprintf(stderr, "Option -%c requires an argument (interface \
+				        ex. eth0)", optopt);
+				} else if (isprint (optopt))
 					fprintf (stderr, "Unknown option `-%c'.\n", optopt);
 				else
 					fprintf (stderr, "Unknown option character `\\x%x'.\n", optopt);
-				return -1;
+				return s;
 			default:
 				abort ();
 	}
 	printf ("scantype = %s target = %s\n", scan_op, target_op);
+	if (iface_op) printf("iface specified (%s)\n", iface_op);
+	else printf("iface not specified\n");
 	for (index = optind; index < argc; index++)
 		printf ("Non-option argument %s\n", argv[index]);
 
@@ -57,8 +65,7 @@ int parse_arguments(int argc, char **argv){
 		targets_found = parse_target(target_op, &t);
 		printf("\ntargets_found back in parse_arguments(): %d\n", targets_found);
 	}
-	
-	return valid_args;
+	return s;
 }
 
 /*  int parse_scantype(char *arg, enum supported_scantypes *type):
@@ -148,15 +155,7 @@ int parse_target(char *arg, struct target **ret){
 	return count;
 }
 
-int main (int argc, char **argv){
-	printf("-----------------------------------------\n");
-	printf("parse.c\n");
-	printf("-----------------------------------------\n\n");
-	
-	parse_arguments(argc, argv);
-	
-	return 0;
-}
+
 
 
 /* target */
@@ -287,4 +286,14 @@ char **build_targets_from_wc(char *arg, int pre_wc_chars, int *generated){
 	}
 	memcpy(generated, &current_ip, sizeof(int));
 	return ret;
+}
+
+int main (int argc, char **argv){
+	printf("-----------------------------------------\n");
+	printf("parse.c\n");
+	printf("-----------------------------------------\n\n");
+	struct scan *s;
+	parse_arguments(argc, argv, s);
+	
+	return 0;
 }

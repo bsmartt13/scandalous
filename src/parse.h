@@ -5,9 +5,8 @@
 #include <unistd.h> /* close() */
 
 #include "scan.h"
-#include "parse_target.h"
 //function declarations
-int parse_arguments(int argc, char **argv);
+struct scan *parse_arguments(int argc, char **argv, struct scan *s);
 int parse_scantype(char *arg, enum scan_type *type);
 int parse_target(char *arg, struct target **ret);
 struct target buildTarget(char *target_op);
