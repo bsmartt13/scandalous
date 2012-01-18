@@ -25,3 +25,4 @@ struct results {
 };
 
 struct scan *allocate_scan();
+

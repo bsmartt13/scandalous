@@ -36,15 +36,17 @@
 
 struct target *allocate_target(char *iface) {
 
-	void *tmp;
+	void *tmp; /* don't you dare free() this shit */
 	struct target *t;
 	struct host *self, *other;
+
 	
 	tmp = (struct target *) malloc ( sizeof (struct target));
 	if (tmp != NULL) {
 		t = tmp;
 	} else {
-		fprintf (stderr, "ERROR: unable to allocate memory for target. (allocate_target())\n");
+		fprintf (stderr, "ERROR: unable to allocate memory for \
+		    target. (allocate_target())\n");
 		exit (EXIT_FAILURE);
 	}
 	memset (t, 0, sizeof(struct target));
@@ -53,7 +55,8 @@ struct target *allocate_target(char *iface) {
 	if (tmp != NULL) {
 		self = tmp;
 	} else {
-		fprintf (stderr, "ERROR: unable to allocate memory for host (1). (allocate_target())\n");
+		fprintf (stderr, "ERROR: unable to allocate memory for \
+		    host (1). (allocate_target())\n");
 		exit (EXIT_FAILURE);
 	}
 	memset (self, 0, sizeof(struct host));
@@ -64,18 +67,77 @@ struct target *allocate_target(char *iface) {
 	if (tmp != NULL) {
 		other = tmp;
 	} else {
-		fprintf (stderr, "ERROR: unable to allocate memory for other (1). (allocate_target())\n");
+		fprintf (stderr, "ERROR: unable to allocate memory for \
+		    other (1). (allocate_target())\n");
 		exit (EXIT_FAILURE);
 	}
 	memset (other, 0, sizeof(struct host));
+	
+	tmp = (char *) malloc (sizeof(iface));
+	if (tmp != NULL) {
+	    t->interface = tmp;
+	} else {
+	    fprintf (stderr, "ERROR: unable to allocate memory for struct \
+	        target->interface. (allocate_target())\n");
+	    exit(EXIT_FAILURE);
+	}
+	
 	other->host_type = _TARGET;
 	t->dest_h = other;
+	memcpy(t->interface, iface, sizeof(iface));
 	
 	return t;
 }
 
 /***
- *  void get_extern_ip(char iface[], char **buffer):
+ * void setopt_host(struct host *h,...:
+ * sets up a host.
+ * h: pointer to the host we're configuring.
+ * htype: the host type (see target type macro target.h)
+ * addr: pointer to string form ip address
+ * plist: points to array of int
+ ***/
+struct host *set_host_opts(struct host *h, int htype, char *addr, unsigned short *plist) {
+
+    struct sockaddr_in *host_in;
+    void *tmp; /* don't you dare free() this shit! */
+
+    /* allocate struct host */
+	tmp = (struct sockaddr_in *) malloc (sizeof(struct sockaddr_in));
+	if (tmp != NULL) {
+	    host_in = tmp;
+	} else {
+	    fprintf (stderr, "ERROR: unable to allocate memory for struct \
+	        struct sockaddr_in. (allocate_target())\n");
+	    exit(EXIT_FAILURE);
+	}
+    /* allocate host->addr */
+    tmp = (char *) malloc ( (strlen (addr) + 1) * sizeof(char) );
+	if (tmp != NULL) {
+	    h->ipaddr = tmp;
+	} else {
+	    fprintf (stderr, "ERROR: unable to allocate memory for struct \
+	        h->ipaddr. (set_host_opts())\n");
+	    exit(EXIT_FAILURE);
+	}
+    
+    host_in->sin_family = AF_INET;
+    host_in->sin_port = htons(plist[0]);
+    inet_pton(AF_INET, (const char *) addr, &(host_in->sin_addr));
+    h->addr_in = host_in;
+    memcpy (h->ipaddr, addr, strlen(addr) + 1);
+    h->ports = plist;
+    h->num_ports = sizeof(plist) / sizeof(unsigned short);
+    #ifdef DEBUG
+        printf("set_host_opts(): plist's length is %d\n", sizeof(*plist) / sizeof(unsigned short));
+    #endif
+    h->host_type = htype;
+    
+    return h;
+}
+
+/***
+ *  void get_local_ip(char iface[], char **buffer):
  *  calls the bash command `ifconfig <iface>` and pulls the external ip it finds
  ***/
 void get_local_ip(char iface[], char **buffer, size_t buflen) {

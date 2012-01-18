@@ -9,7 +9,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of this program nor the names of its contributors
+ * 3. Neither the name of this program nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -41,9 +41,13 @@
  */
 struct scan *parse_arguments(int argc, char **argv, struct scan *s){
 	int index = 0, valid_args = 0, targets_found = 0;
+	unsigned short *port_list;
 	char *scan_op = NULL, *target_op = NULL, *iface_op = NULL;
 	int c;
     struct target *t;
+	enum scan_type *stype;
+	void *tmp;
+
 	
 	while ((c = getopt (argc, argv, "s:i:t:")) != -1)
 		switch (c){
@@ -82,18 +86,35 @@ struct scan *parse_arguments(int argc, char **argv, struct scan *s){
 	else printf("iface not specified\n");
 	for (index = optind; index < argc; index++)
 		printf ("Non-option argument %s\n", argv[index]);
-
-	enum scan_type *stype = (enum scan_type *) \
-		malloc (sizeof(enum scan_type));
+	stype = (enum scan_type *) malloc (sizeof(enum scan_type));
 	if (valid_args > 0){
-		parse_scantype(scan_op, stype);
-		targets_found = parse_target(target_op, &t);
-		printf("\ntargets_found back in parse_arguments(): %d\n", targets_found);
+        parse_scantype(scan_op, stype);
+        targets_found = parse_target(target_op, &t);
+        printf("\ntargets_found back in parse_arguments(): %d\n", targets_found);
 	}
+	
+    tmp = (unsigned short *) malloc (sizeof (unsigned short) * 20);
+	if (tmp != NULL) port_list = tmp;
+	else {
+	    fprintf (stderr, "ERROR: unable to allocate memory for \
+	        unsigned short *port_list. (parse_arguments())\n");
+	    exit (EXIT_FAILURE);
+	}
+	
     t = allocate_target(iface_op);
 	s = allocate_scan();
 	memcpy(&(s->scan_type), stype, sizeof(enum scan_type));
-	
+	memcpy(port_list, (unsigned short *) top20_tcp_ports, sizeof (unsigned short) * 20);
+	t->source_h = set_host_opts(t->source_h, _TARGET, target_op, port_list);
+	//memcpy(&(t->interface), iface_op, sizeof(iface_op));
+	#ifdef DEBUG
+	    if ( (int) s->scan_type == 2)
+	        printf("s->scan_type set to : syn scan\n");
+	    else
+	        printf("s->scan_type set to : %d\n", (int) s->scan_type);
+	    printf("t->interface : %s\n", t->interface);
+    #endif
+    free(stype);
 	return s;
 }
 

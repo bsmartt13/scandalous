@@ -1,4 +1,6 @@
 #include <sys/socket.h>  /* socket(), connect() */
+#include <netinet/in.h> /* struct sockaddr_in */
+#include <arpa/inet.h> /* inet_pton() */
 #include <stdlib.h> /* malloc(), exit() */
 #include <stdio.h> /* printf() family, popen */
 #include <string.h> /* memset(), strstr(), strchr() */
@@ -61,5 +63,6 @@ struct target
 
 /* target.c function declarations */
 struct target *allocate_target(char *iface);
+struct host *set_host_opts(struct host *h, int htype, char *addr, unsigned short *plist);
 void get_local_ip(char iface[], char **buffer, size_t buflen);
 int target_test(int argc, char **argv);
