@@ -89,6 +89,33 @@ struct target *allocate_target(char *iface) {
 	return t;
 }
 
+struct plist *construct_plist(unsigned short *port_list, int len, int proto) {
+    struct plist *pl;
+    void *tmp;
+    
+    tmp = (struct plist *) malloc (sizeof (struct plist));
+    if (tmp != NULL) pl = tmp;
+    else {
+        fprintf (stderr, "ERROR: unable to allocate memory for struct \
+            plist (allocate_plist())\n");
+        exit (EXIT_FAILURE);
+    }
+    
+    tmp = (unsigned short *) malloc (sizeof (unsigned short) * len);
+    if (tmp != NULL) pl->ports = tmp;
+    else {
+        fprintf (stderr, "ERROR: unable to allocate memory for unsigned  \
+            short *ports (allocate_plist())\n");
+        exit (EXIT_FAILURE);
+    }
+    
+    memcpy (pl->ports, port_list, len * sizeof(unsigned short));
+    pl->length = len;
+    pl->protocol = proto;
+    
+    return pl;
+}
+
 /***
  * void setopt_host(struct host *h,...:
  * sets up a host.
@@ -97,7 +124,7 @@ struct target *allocate_target(char *iface) {
  * addr: pointer to string form ip address
  * plist: points to array of int
  ***/
-struct host *set_host_opts(struct host *h, int htype, char *addr, unsigned short *plist) {
+struct host *construct_host(struct host *h, int htype, char *addr, unsigned short *port_list, int port_list_len) {
 
     struct sockaddr_in *host_in;
     void *tmp; /* don't you dare free() this shit! */
@@ -108,7 +135,7 @@ struct host *set_host_opts(struct host *h, int htype, char *addr, unsigned short
 	    host_in = tmp;
 	} else {
 	    fprintf (stderr, "ERROR: unable to allocate memory for struct \
-	        struct sockaddr_in. (allocate_target())\n");
+	        struct sockaddr_in. (construct_host())\n");
 	    exit(EXIT_FAILURE);
 	}
     /* allocate host->addr */
@@ -117,22 +144,21 @@ struct host *set_host_opts(struct host *h, int htype, char *addr, unsigned short
 	    h->ipaddr = tmp;
 	} else {
 	    fprintf (stderr, "ERROR: unable to allocate memory for struct \
-	        h->ipaddr. (set_host_opts())\n");
+	        h->ipaddr. (construct_host())\n");
 	    exit(EXIT_FAILURE);
 	}
     
+    h->ports_pl = construct_plist(port_list, port_list_len, _TCP);
     host_in->sin_family = AF_INET;
-    host_in->sin_port = htons(plist[0]);
+    host_in->sin_port = htons(h->ports_pl->ports[0]);
     inet_pton(AF_INET, (const char *) addr, &(host_in->sin_addr));
     h->addr_in = host_in;
     memcpy (h->ipaddr, addr, strlen(addr) + 1);
-    h->ports = plist;
-    h->num_ports = sizeof(plist) / sizeof(unsigned short);
-    #ifdef DEBUG
-        printf("set_host_opts(): plist's length is %d\n", sizeof(*plist) / sizeof(unsigned short));
-    #endif
     h->host_type = htype;
-    
+        #ifdef DEBUG
+    printf("plist first port: %d, %d, %d, %d\n", h->ports_pl->ports[0], 
+    h->ports_pl->ports[1], h->ports_pl->ports[2], h->ports_pl->ports[3]);
+    #endif
     return h;
 }
 

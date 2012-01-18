@@ -19,6 +19,11 @@
 #define _SELF 0
 #define _OTHER -1
 
+#define _TCP 1
+#define _UDP 2 /* not used yet */
+#define _ICMP 3 /* not used yet */
+
+#define TOP20_PORTS_LEN 20
 /* This list is the result of some brilliant work by Fyodor in his "Scanning the
  * Internet" presentation (Summer 2008). Thanks Fyodor!
  */
@@ -42,17 +47,6 @@ static const unsigned short top20_tcp_ports[] = {   80,     /* HTTP */
                         995,    /* IMAPS */
                         5900,   /* VNC */
 };
-/**/
-struct host
-{
-    struct sockaddr_in *addr_in;
-    char *ipaddr;
-    unsigned short *ports;
-    unsigned int num_ports;     // length of ports array
-    unsigned int host_type; 
-    
-};
-
 struct target
 {
     struct host *source_h;
@@ -60,9 +54,23 @@ struct target
     char *interface;
     int status;
 };
+struct host
+{
+    struct sockaddr_in *addr_in;
+    struct plist *ports_pl;
+    char *ipaddr;
+    unsigned int host_type;
+};
+struct plist
+{
+    unsigned short *ports;
+    int protocol;
+    int length;
+};
 
 /* target.c function declarations */
 struct target *allocate_target(char *iface);
-struct host *set_host_opts(struct host *h, int htype, char *addr, unsigned short *plist);
+struct plist *construct_plist(unsigned short *port_list, int len, int proto);
+struct host *construct_host(struct host *h, int htype, char *addr, unsigned short *port_list, int port_list_len);
 void get_local_ip(char iface[], char **buffer, size_t buflen);
 int target_test(int argc, char **argv);

@@ -104,8 +104,8 @@ struct scan *parse_arguments(int argc, char **argv, struct scan *s){
     t = allocate_target(iface_op);
 	s = allocate_scan();
 	memcpy(&(s->scan_type), stype, sizeof(enum scan_type));
-	memcpy(port_list, (unsigned short *) top20_tcp_ports, sizeof (unsigned short) * 20);
-	t->source_h = set_host_opts(t->source_h, _TARGET, target_op, port_list);
+	memcpy(port_list, (unsigned short *) top20_tcp_ports, sizeof (unsigned short) * TOP20_PORTS_LEN);
+	t->source_h = construct_host(t->source_h, _TARGET, target_op, port_list, TOP20_PORTS_LEN);
 	//memcpy(&(t->interface), iface_op, sizeof(iface_op));
 	#ifdef DEBUG
 	    if ( (int) s->scan_type == 2)
