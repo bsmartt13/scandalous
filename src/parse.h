@@ -1,8 +1,5 @@
-#include <stdio.h> /* printf(), fprintf() */
-#include <ctype.h> /*  isprint() macro */
-#include <string.h> /* strtok_r() bzero(), bcopy() strdup() */
-#include <stdlib.h> /* atoi(), exit() */
-#include <unistd.h> /* close() */
+#include <ctype.h> /*  isprint() */
+#include <unistd.h> /* getopt() and friends: optarg, optopt, optind */
 
 #include "scan.h"
 //function declarations

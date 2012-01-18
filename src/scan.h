@@ -1,10 +1,8 @@
-#include "target.h"
+#include "target.h" /* struct target */
 
+#define MAX_TARGETS 256 /* NOT YET USED */
 
-#define MAX_TARGETS 256
-
-enum scan_type
-{
+enum scan_type {
     PING_SCAN = 1, 
     SYN_SCAN = 2, 
     TCP_CONNECT_SCAN = 3, 
@@ -14,16 +12,16 @@ enum scan_type
     XMAS_SCAN = 7
 };
 
-struct scan
-{
+struct scan {
     struct target *victim; /* { sockaddr_in *address, char *name, int type } */
-    enum scan_type scantype; /* */
+    enum scan_type scan_type; /* */
     unsigned int flags; /* unimplemented */
     int sock; /* socket descriptor */
 };
 
-struct results
-{
+struct results {
     int *port_status;
     
 };
+
+struct scan *allocate_scan();

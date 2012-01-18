@@ -1,5 +1,30 @@
-#include "parse.h"
-
+/* Copyright (c) 2012, Bill Smartt
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 4. Neither the name of this program nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
 
 /*******************************************************************************
  *  File: parse.c
@@ -7,6 +32,7 @@
  *  Description: The main parsing functionality is contained in this file.
  *  Status: Implemented.
  ******************************************************************************/
+#include "parse.h"
 
 /*  int parse_arguments(int argc, char **argv):
  *  Parses the entire command line argument.  as it finds the options, it calls 
@@ -18,7 +44,6 @@ struct scan *parse_arguments(int argc, char **argv, struct scan *s){
 	char *scan_op = NULL, *target_op = NULL, *iface_op = NULL;
 	int c;
     struct target *t;
-    //allocate_target();
 	
 	while ((c = getopt (argc, argv, "s:i:t:")) != -1)
 		switch (c){
@@ -65,6 +90,10 @@ struct scan *parse_arguments(int argc, char **argv, struct scan *s){
 		targets_found = parse_target(target_op, &t);
 		printf("\ntargets_found back in parse_arguments(): %d\n", targets_found);
 	}
+    t = allocate_target(iface_op);
+	s = allocate_scan();
+	memcpy(&(s->scan_type), stype, sizeof(enum scan_type));
+	
 	return s;
 }
 
@@ -182,9 +211,9 @@ int split_target_list(char *arg, char **ret){
 	token = strsep(&running, list_delim);
 	ret[targs_found] = (char *) malloc (sizeof (char) * strlen(token));
 	ret[targs_found++] = token;
-#ifdef DEBUG
-	printf("new target found: %s\n", ret[targs_found - 1]);
-#endif
+    #ifdef DEBUG
+	    printf("new target found: %s\n", ret[targs_found - 1]);
+    #endif
 	for(; targs_found < count && token != NULL; targs_found++){
 		token = strsep(&running, list_delim);
 		ret[targs_found] = (char *) malloc (sizeof (char) * strlen(token));

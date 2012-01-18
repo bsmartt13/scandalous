@@ -188,8 +188,10 @@ unsigned short int build_chksum(struct ip ipheader, struct tcphdr tcpheader){
 
     /* Checksum field, TCP says this must be zeroed out while computing it.  *
      * 2 bytes.                                                              */
-    *buf_p = 0; buf_p++;
-    *buf_p = 0; buf_p++;
+    *buf_p = 0; 
+    buf_p++;
+    *buf_p = 0; 
+    buf_p++;
     chksumsz += 2;
 
     /* Urgent pointer field used in conjunction with URG control bit for     *
@@ -294,12 +296,9 @@ unsigned char *build_packet(unsigned char *packet, int *flags_ptr, char *source_
     ipheader.ip_id = htons (0);
 
     /* Flags, and Fragmentation offset (3, 13 bits): 0 since single datagram */
-    /* Zero (1 bit) */
-    ip_flags[0] = 0;
-    /* Do not fragment flag (1 bit) */
-    ip_flags[1] = 0;
-    /* More fragments following flag (1 bit) */
-    ip_flags[2] = 0;
+    ip_flags[0] = 0; /* Zero (1 bit) */
+    ip_flags[1] = 0; /* Do not fragment flag (1 bit) */
+    ip_flags[2] = 0; /* More fragments following flag (1 bit) */
 
     /* Fragmentation offset (13 bits) specifies the offset of a particular    *
      * fragment relative to the beginning of the original unfragmented IP     *
@@ -307,8 +306,7 @@ unsigned char *build_packet(unsigned char *packet, int *flags_ptr, char *source_
     ip_flags[3] = 0;
     ipheader.ip_off = htons ((ip_flags[0] << 15) + (ip_flags[1] << 14) \
         + (ip_flags[2] << 13) +  ip_flags[3]);
-    /* Time-to-Live (8 bits): default to maximum value */
-    ipheader.ip_ttl = 255;
+    ipheader.ip_ttl = 255; /* Time-to-Live (8 bits): default to maximum value */
     /* Transport layer protocol (8 bits): 6 for TCP */
     ipheader.ip_p = IPPROTO_TCP;
     /* Source IPv4 address (32 bits) */

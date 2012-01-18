@@ -1,5 +1,7 @@
 #include <sys/socket.h>  /* socket(), connect() */
-#include <arpa/inet.h>
+#include <stdlib.h> /* malloc(), exit() */
+#include <stdio.h> /* printf() family, popen */
+#include <string.h> /* memset(), strstr(), strchr() */
 
 #define MAX_TARGETS 256
 
@@ -53,12 +55,11 @@ struct target
 {
     struct host *source_h;
     struct host *dest_h;
+    char *interface;
     int status;
 };
 
 /* target.c function declarations */
 struct target *allocate_target(char *iface);
 void get_local_ip(char iface[], char **buffer, size_t buflen);
-/* int set_host_type(struct *host h, int type);
-void get_local_ip(char iface[], char **buffer, size_t buflen);
-*/
+int target_test(int argc, char **argv);

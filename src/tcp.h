@@ -1,6 +1,6 @@
 #include <netdb.h>      /* for addrinfo */
-#include <sys/types.h>  /* for socket() , pthread, time_t*/
-#include <sys/socket.h> /* socket() */
+#include <sys/types.h>  /* for socket() */
+#include <sys/socket.h> /* more socket() */
 #include <netinet/in.h> /* IPPROTO_IP + IPPROTO_TCP constants */
 #include <netinet/ip.h> /* struct ip and IP_MAXPACKET */
 #define __FAVOR_BSD     /* prefer BSD style packet headers */
@@ -11,8 +11,6 @@
 #include <net/if.h>     /* struct ifreq */
 //#include <time.h>         /* clock(), time(), localtime(), difftime() clock_t */
 #include <errno.h>      /* stderr, errno, perror() */
-
-#include "parse.h"
 
 // Constants
 #define IP4_HEADER_LEN 20         /* length of a IPv4 header in bytes */
