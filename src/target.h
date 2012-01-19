@@ -7,18 +7,24 @@
 
 #define MAX_TARGETS 256
 
-/* scan states */
-#define WAITING -1
-#define READY 0
+/* port statuses used to keep track of what has and hasn't been scanned */
+#define _WAITING_ 0
+#define _READY_ 1
+#define _RUNNING_ 2
+#define _DONE_ 3
 
-#define RUNNING 1
-#define DONE 2
+/* port states */
+#define __UNKNOWN -1 /* all ports start in this state. */
+#define __CLOSED 0
+#define __OPEN 1
+#define __FILTERED 2
 
 /* types of targets */
 #define _TARGET 1
 #define _SELF 0
 #define _OTHER -1
 
+/* Protocols */
 #define _TCP 1
 #define _UDP 2 /* not used yet */
 #define _ICMP 3 /* not used yet */
@@ -65,6 +71,8 @@ struct host
 struct plist
 {
     unsigned short *ports;
+    int *status;
+    int *states;
     int protocol;
     int length;
 };

@@ -35,12 +35,10 @@
  *****/
 
 struct target *allocate_target(char *iface) {
-
 	void *tmp; /* don't you dare free() this shit */
 	struct target *t;
 	struct host *self, *other;
 
-	
 	tmp = (struct target *) malloc ( sizeof (struct target));
 	if (tmp != NULL) {
 		t = tmp;
@@ -50,7 +48,6 @@ struct target *allocate_target(char *iface) {
 		exit (EXIT_FAILURE);
 	}
 	memset (t, 0, sizeof(struct target));
-	
 	tmp = (struct host *) malloc (sizeof (struct host));
 	if (tmp != NULL) {
 		self = tmp;
@@ -62,7 +59,6 @@ struct target *allocate_target(char *iface) {
 	memset (self, 0, sizeof(struct host));
     self->host_type = _SELF;
     t->source_h = self;
-	
 	tmp = (struct host *) malloc (sizeof (struct host));
 	if (tmp != NULL) {
 		other = tmp;
@@ -72,7 +68,6 @@ struct target *allocate_target(char *iface) {
 		exit (EXIT_FAILURE);
 	}
 	memset (other, 0, sizeof(struct host));
-	
 	tmp = (char *) malloc (sizeof(iface));
 	if (tmp != NULL) {
 	    t->interface = tmp;
@@ -81,7 +76,6 @@ struct target *allocate_target(char *iface) {
 	        target->interface. (allocate_target())\n");
 	    exit(EXIT_FAILURE);
 	}
-	
 	other->host_type = _TARGET;
 	t->dest_h = other;
 	memcpy(t->interface, iface, sizeof(iface));
@@ -92,6 +86,7 @@ struct target *allocate_target(char *iface) {
 struct plist *construct_plist(unsigned short *port_list, int len, int proto) {
     struct plist *pl;
     void *tmp;
+    int i;
     
     tmp = (struct plist *) malloc (sizeof (struct plist));
     if (tmp != NULL) pl = tmp;
@@ -100,7 +95,6 @@ struct plist *construct_plist(unsigned short *port_list, int len, int proto) {
             plist (allocate_plist())\n");
         exit (EXIT_FAILURE);
     }
-    
     tmp = (unsigned short *) malloc (sizeof (unsigned short) * len);
     if (tmp != NULL) pl->ports = tmp;
     else {
@@ -108,26 +102,41 @@ struct plist *construct_plist(unsigned short *port_list, int len, int proto) {
             short *ports (allocate_plist())\n");
         exit (EXIT_FAILURE);
     }
-    
+    tmp = (int *) malloc (sizeof (int) * len);
+    if (tmp != NULL) pl->status = tmp;
+    else {
+        fprintf (stderr, "ERROR: unable to allocate memory for int  \
+            *status (allocate_plist())\n");
+        exit (EXIT_FAILURE);
+    }    
+    tmp = (int *) malloc (sizeof (int) * len);
+    if (tmp != NULL) pl->states = tmp;
+    else {
+        fprintf (stderr, "ERROR: unable to allocate memory for int  \
+            *states (allocate_plist())\n");
+        exit (EXIT_FAILURE);
+    }
     memcpy (pl->ports, port_list, len * sizeof(unsigned short));
     pl->length = len;
     pl->protocol = proto;
-    
+    for (i=0; i<len; i++) {
+        pl->states[i] = __UNKNOWN;
+        pl->status[i] = _WAITING_;
+    }
+        
     return pl;
 }
 
 /***
  * void setopt_host(struct host *h,...:
- * sets up a host.
+ * sets up a host.  first port in plist is added to sockaddr_in
  * h: pointer to the host we're configuring.
  * htype: the host type (see target type macro target.h)
  * addr: pointer to string form ip address
  ***/
 struct host *construct_host(struct host *h, int htype, char *addr, unsigned short *port_list, int port_list_len) {
-
     struct sockaddr_in *host_in;
     void *tmp; /* don't you dare free() this shit! */
-
     /* allocate struct host */
 	tmp = (struct sockaddr_in *) malloc (sizeof(struct sockaddr_in));
 	if (tmp != NULL) {
@@ -146,7 +155,6 @@ struct host *construct_host(struct host *h, int htype, char *addr, unsigned shor
 	        h->ipaddr. (construct_host())\n");
 	    exit(EXIT_FAILURE);
 	}
-    
     h->ports_pl = construct_plist(port_list, port_list_len, _TCP);
     host_in->sin_family = AF_INET;
     host_in->sin_port = htons(h->ports_pl->ports[0]);
@@ -154,10 +162,7 @@ struct host *construct_host(struct host *h, int htype, char *addr, unsigned shor
     h->addr_in = host_in;
     memcpy (h->ipaddr, addr, strlen(addr) + 1);
     h->host_type = htype;
-        #ifdef DEBUG
-    printf("plist first port: %d, %d, %d, %d\n", h->ports_pl->ports[0], 
-    h->ports_pl->ports[1], h->ports_pl->ports[2], h->ports_pl->ports[3]);
-    #endif
+    
     return h;
 }
 
