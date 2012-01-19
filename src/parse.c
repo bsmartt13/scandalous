@@ -39,12 +39,13 @@
  *  helper functions to parse individual arguments.  Parsing the target IP is more
  *  complex, so it sits in it's own file, parse_target.c|h.  
  */
-struct scan *parse_arguments(int argc, char **argv, struct scan *s){
+struct scan *parse_arguments(int argc, char **argv) {
 	int index = 0, valid_args = 0, targets_found = 0;
 	unsigned short *port_list;
 	char *scan_op = NULL, *target_op = NULL, *iface_op = NULL;
 	int c;
     struct target *t;
+    struct scan *s;
 	enum scan_type *stype;
 	void *tmp;
 
@@ -77,7 +78,7 @@ struct scan *parse_arguments(int argc, char **argv, struct scan *s){
 					fprintf (stderr, "Unknown option `-%c'.\n", optopt);
 				else
 					fprintf (stderr, "Unknown option character `\\x%x'.\n", optopt);
-				return s;
+				return NULL;
 			default:
 				abort ();
 	}
@@ -103,10 +104,11 @@ struct scan *parse_arguments(int argc, char **argv, struct scan *s){
 	
     t = allocate_target(iface_op);
 	s = allocate_scan();
+	s->victim = t;
 	memcpy(&(s->scan_type), stype, sizeof(enum scan_type));
 	memcpy(port_list, (unsigned short *) top20_tcp_ports, sizeof (unsigned short) * TOP20_PORTS_LEN);
-	t->source_h = construct_host(t->source_h, _TARGET, target_op, port_list, TOP20_PORTS_LEN);
-	//memcpy(&(t->interface), iface_op, sizeof(iface_op));
+	t->dest_h = construct_host(t->source_h, _TARGET, target_op, port_list, TOP20_PORTS_LEN);
+    
 	#ifdef DEBUG
 	    if ( (int) s->scan_type == 2)
 	        printf("s->scan_type set to : syn scan\n");
@@ -343,7 +345,7 @@ int main (int argc, char **argv){
 	printf("parse.c\n");
 	printf("-----------------------------------------\n\n");
 	struct scan *s;
-	parse_arguments(argc, argv, s);
-	
+	s = parse_arguments(argc, argv);
+	printf("got *s.\n");
 	return 0;
 }

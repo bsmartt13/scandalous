@@ -13,15 +13,14 @@ enum scan_type {
 };
 
 struct scan {
-    struct target *victim; /* { sockaddr_in *address, char *name, int type } */
-    enum scan_type scan_type; /* */
+    struct target *victim;
+    enum scan_type scan_type;
     unsigned int flags; /* unimplemented */
     int sock; /* socket descriptor */
 };
 
 struct results {
     int *port_status;
-    
 };
 
 struct scan *allocate_scan();

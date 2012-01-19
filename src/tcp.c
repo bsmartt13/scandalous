@@ -551,12 +551,12 @@ int partial_handshake(int *flags_arg) {
     sin_len = (socklen_t) sizeof(sin);
     bytes_recvd = recvfrom(sock, response_pkt, IP_MAXPACKET, 0, \
         (struct sockaddr *) &sin, &sin_len);
-    if (bytes_recvd < 0) {
+    if ( (bytes_recvd < 0) || (bytes_recvd > IP_MAXPACKET) ) {
         perror("recvfrom() failed on SYN/ACK ");
         exit(EXIT_FAILURE);
     }
 #ifdef DEBUG
-    printf("recvd %d bytes!\n", bytes_recvd);
+    printf("recvd %d bytes\n", bytes_recvd);
 #endif
     get_packet_type(&response_pkt);
     close(sock);

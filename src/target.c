@@ -122,7 +122,6 @@ struct plist *construct_plist(unsigned short *port_list, int len, int proto) {
  * h: pointer to the host we're configuring.
  * htype: the host type (see target type macro target.h)
  * addr: pointer to string form ip address
- * plist: points to array of int
  ***/
 struct host *construct_host(struct host *h, int htype, char *addr, unsigned short *port_list, int port_list_len) {
 

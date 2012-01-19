@@ -39,12 +39,13 @@ static const unsigned short top20_tcp_ports[] = {   80,     /* HTTP */
                         139,    /* NetBIOS-SSN */
                         143,    /* IMAP */
                         53,     /* DNS */
-                        135,    /* MySQL */
-                        3306,   /* HTTP-Proxy */
-                        8080,   /* PPTP */
-                        1723,   /* RPCBind */
-                        111,    /* POP3S */
-                        995,    /* IMAPS */
+                        135,    /* MSRPC */
+                        3306,   /* MySQL */
+                        8080,   /* HTTP Proxy */
+                        1723,   /* PPTP */
+                        111,    /* RPCBind */
+                        995,    /* POPS */
+                        993,    /* IMAPS */
                         5900,   /* VNC */
 };
 struct target
