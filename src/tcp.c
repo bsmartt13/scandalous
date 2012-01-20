@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of this program nor the names of its contributors
+ * 3. Neither the name of this program nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,8 +36,6 @@
  *    determine whether the port is open or closed. This is the basic         *
  *    algorithm for a syn (stealth) scan.
  *****/
-
-
 /*  the linux kernel will send RST packet out right behind anything we 
  *  do that's not using the built-in TCP stack.  use iptables filtering
  *  to drop all these packets.
@@ -45,7 +43,6 @@
  *  system("iptables -A OUTPUT -p tcp -d 127.0.0.1 -s 127.0.0.1 --dport 80 --tcp-flags RST RST -j DROP");
  *  <----- send packets over raw socket ----->
  *  system("iptables -A OUTPUT -p tcp -d 127.0.0.1 -s 127.0.0.1 --dport 80 --tcp-flags RST RST -j ACCEPT");
- * 
  */
 
 int main(int argc, char **argv){
@@ -499,10 +496,10 @@ int partial_handshake(int *flags_arg) {
         exit(EXIT_FAILURE);
     }
     get_extern_ip(ifr.ifr_name, &source_ipaddr);
-#ifdef DEBUG
-    printf("interface %i is %s (%s)\n", \
-        ifr.ifr_ifindex, interface, source_ipaddr);
-#endif
+    #ifdef DEBUG
+        printf("interface %i is %s (%s)\n", \
+            ifr.ifr_ifindex, interface, source_ipaddr);
+    #endif
     /* Destination URL or IPv4 address */
     strcpy(target_ipaddr, "192.168.1.113");
 

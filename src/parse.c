@@ -42,15 +42,14 @@
 struct scan *parse_arguments(int argc, char **argv) {
 	int index = 0, valid_args = 0, targets_found = 0;
 	unsigned short *port_list;
-	char *scan_op = NULL, *target_op = NULL, *iface_op = NULL;
-	int c;
+	char *scan_op = NULL, *target_op = NULL, *iface_op = NULL, *ports_op = NULL;
+	int c, num_ports = 0;
     struct target *t;
     struct scan *s;
 	enum scan_type *stype;
 	void *tmp;
 
-	
-	while ((c = getopt (argc, argv, "s:i:t:")) != -1)
+	while ((c = getopt (argc, argv, "s:i:t:p:")) != -1)
 		switch (c){
 			case 's':
 				scan_op = optarg;
@@ -63,6 +62,10 @@ struct scan *parse_arguments(int argc, char **argv) {
             case 'i':
                 iface_op = optarg;
                 valid_args++;
+                break;
+            case 'p':
+                ports_op = optarg;
+                valid_args++;;
                 break;
 			case '?':
 				if (optopt == 's') {
@@ -91,30 +94,30 @@ struct scan *parse_arguments(int argc, char **argv) {
 	if (valid_args > 0){
         parse_scantype(scan_op, stype);
         targets_found = parse_target(target_op, &t);
+        
         printf("\ntargets_found back in parse_arguments(): %d\n", targets_found);
 	}
-	
-    tmp = (unsigned short *) malloc (sizeof (unsigned short) * 20);
+    t = allocate_target(iface_op);
+	s = allocate_scan();
+	s->victim = t;
+    tmp = (unsigned short *) malloc (sizeof (unsigned short) * MAX_PORTS);
 	if (tmp != NULL) port_list = tmp;
 	else {
 	    fprintf (stderr, "ERROR: unable to allocate memory for \
 	        unsigned short *port_list. (parse_arguments())\n");
 	    exit (EXIT_FAILURE);
 	}
-	
-    t = allocate_target(iface_op);
-	s = allocate_scan();
-	s->victim = t;
-	memcpy(&(s->scan_type), stype, sizeof(enum scan_type));
-	memcpy(port_list, (unsigned short *) top20_tcp_ports, sizeof (unsigned short) * TOP20_PORTS_LEN);
-	t->dest_h = construct_host(t->source_h, _TARGET, target_op, port_list, TOP20_PORTS_LEN);
-    
+	if (!ports_op) snprintf(ports_op, (MAX_PORTS - 1), "top20");
+	num_ports = parse_ports(ports_op, &port_list);
+	t->dest_h = construct_host(t->source_h, _TARGET, target_op, port_list, num_ports);
+	memcpy(&(s->scan_type), stype, sizeof(enum scan_type));    
 	#ifdef DEBUG
 	    if ( (int) s->scan_type == 2)
 	        printf("s->scan_type set to : syn scan\n");
 	    else
 	        printf("s->scan_type set to : %d\n", (int) s->scan_type);
 	    printf("t->interface : %s\n", t->interface);
+	    //printf("%d ports added to dest_h plist\n", t->dest_h->ports_pl.length);
     #endif
     free(stype);
 	return s;
@@ -161,6 +164,38 @@ int parse_scantype(char *arg, enum scan_type *type){
 			type = NULL;
 			return -1;
 	}
+}
+
+int parse_ports(char *ports, unsigned short **list) {
+    char delims[] = ",";
+    char *result = NULL;
+    int count = 0, tmp_int = 0;
+    /* catch -p top20 first */
+    if (strstr(ports, "top20")) {
+        memcpy(*list, (unsigned short *) top20_tcp_ports, 
+            sizeof (unsigned short) * TOP20_PORTS_LEN);
+        return TOP20_PORTS_LEN;
+    }
+    /* next look for a ',' separated list */
+    else if (strchr (ports, ',') != NULL) {
+        result = strtok(ports, delims);
+        while (result != NULL) {
+            tmp_int = atoi((const char *) result);
+            if (tmp_int > VALID_PORT_FLOOR && tmp_int < VALID_PORT_CEILING) {
+                (*list)[count] = tmp_int;
+                count++; tmp_int = -1;
+            }
+            result = strtok(NULL, delims);
+        }        
+        return count;
+    } else {
+        tmp_int = atoi((const char *) ports);
+        if (tmp_int < VALID_PORT_CEILING && tmp_int > VALID_PORT_FLOOR) {
+            *list[0] = (unsigned short) tmp_int;
+            return 1;
+        }
+        return -1;
+    }
 }
 
 /*  int parse_target(char *arg, struct target *ret):
