@@ -32,6 +32,7 @@
 #define MAX_PORTS 1000
 #define VALID_PORT_CEILING 65535
 #define VALID_PORT_FLOOR 0
+
  
 //function declarations
 struct scan *parse_arguments(int argc, char **argv);

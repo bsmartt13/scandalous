@@ -51,6 +51,8 @@
 #define _UDP 2 /* not used yet */
 #define _ICMP 3 /* not used yet */
 #define TOP20_PORTS_LEN 20
+
+#define IP_STRING_LEN 16
 /* Thanks Fyodor!  This list is from his book `nmap network scanning'. */
 static const unsigned short top20_tcp_ports[] = {
                         80,     /* HTTP */
@@ -96,6 +98,7 @@ struct plist {
 /* target.c function declarations */
 struct target *allocate_target(char *iface);
 struct plist *construct_plist(unsigned short *port_list, int len, int proto);
-struct host *construct_host(struct host *h, int htype, char *addr, unsigned short *port_list, int port_list_len);
+struct host *construct_host_t(struct host *h, int htype, char *addr, unsigned short *port_list, int port_list_len);
+struct host *construct_host_s(struct host *h, char *addr, unsigned short port);
 void get_local_ip(char iface[], char **buffer, size_t buflen);
 int target_test(int argc, char **argv);

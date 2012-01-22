@@ -41,13 +41,46 @@
  */
 struct scan *parse_arguments(int argc, char **argv) {
 	int index = 0, valid_args = 0, targets_found = 0;
-	unsigned short *port_list;
+	unsigned short *port_list, local_port = 40099;
 	char *scan_op = NULL, *target_op = NULL, *iface_op = NULL, *ports_op = NULL;
 	int c, num_ports = 0;
     struct target *t;
     struct scan *s;
 	enum scan_type *stype;
 	void *tmp;
+	char *ifaceaddr_in, *local_addr;
+
+    tmp = (unsigned short *) malloc (sizeof (unsigned short) * MAX_PORTS);
+	if (tmp != NULL) port_list = tmp;
+	else {
+	    fprintf (stderr, "ERROR: unable to allocate memory for \
+	        unsigned short *port_list. (parse_arguments())\n");
+	    exit (EXIT_FAILURE);
+	}
+
+    tmp = (unsigned short *) malloc (sizeof (unsigned short) * MAX_PORTS);
+	if (tmp != NULL) port_list = tmp;
+	else {
+	    fprintf (stderr, "ERROR: unable to allocate memory for \
+	        unsigned short *port_list. (parse_arguments())\n");
+	    exit (EXIT_FAILURE);
+	}
+
+    tmp = (char *) malloc (sizeof (char) * IP_STRING_LEN);
+	if (tmp != NULL) ifaceaddr_in = tmp;
+	else {
+	    fprintf (stderr, "ERROR: unable to allocate memory for \
+	        char *ifaceaddr_in. (parse_arguments())\n");
+	    exit (EXIT_FAILURE);
+	}
+
+    tmp = (char *) malloc (sizeof (char) * IP_STRING_LEN);
+	if (tmp != NULL) local_addr = tmp;
+	else {
+	    fprintf (stderr, "ERROR: unable to allocate memory for \
+	        char *ifaceaddr_in. (parse_arguments())\n");
+	    exit (EXIT_FAILURE);
+	}
 
 	while ((c = getopt (argc, argv, "s:i:t:p:")) != -1)
 		switch (c){
@@ -94,22 +127,21 @@ struct scan *parse_arguments(int argc, char **argv) {
 	if (valid_args > 0){
         parse_scantype(scan_op, stype);
         targets_found = parse_target(target_op, &t);
-        
         printf("\ntargets_found back in parse_arguments(): %d\n", targets_found);
 	}
     t = allocate_target(iface_op);
 	s = allocate_scan();
 	s->victim = t;
-    tmp = (unsigned short *) malloc (sizeof (unsigned short) * MAX_PORTS);
-	if (tmp != NULL) port_list = tmp;
-	else {
-	    fprintf (stderr, "ERROR: unable to allocate memory for \
-	        unsigned short *port_list. (parse_arguments())\n");
-	    exit (EXIT_FAILURE);
-	}
+	
+	
+    get_local_ip (t->interface, &local_addr, IP_STRING_LEN);
+    #ifdef DEBUG
+    printf("get_local_ip(%s) returned %s", t->interface, local_addr);
+    #endif
 	if (!ports_op) snprintf(ports_op, (MAX_PORTS - 1), "top20");
 	num_ports = parse_ports(ports_op, &port_list);
-	t->dest_h = construct_host(t->source_h, _TARGET, target_op, port_list, num_ports);
+	t->dest_h = construct_host_t(t->dest_h, _TARGET, target_op, port_list, num_ports);
+	t->source_h = construct_host_s(t->source_h, local_addr, local_port);
 	memcpy(&(s->scan_type), stype, sizeof(enum scan_type));    
 	#ifdef DEBUG
 	    if ( (int) s->scan_type == 2)
@@ -120,7 +152,10 @@ struct scan *parse_arguments(int argc, char **argv) {
 	    //printf("%d ports added to dest_h plist\n", t->dest_h->ports_pl.length);
     #endif
     free(stype);
-	return s;
+    free(local_addr);
+    free(port_list);
+    free(ifaceaddr_in);
+    return s;
 }
 
 /*  int parse_scantype(char *arg, enum supported_scantypes *type):

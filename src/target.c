@@ -123,7 +123,6 @@ struct plist *construct_plist(unsigned short *port_list, int len, int proto) {
         pl->states[i] = __UNKNOWN;
         pl->status[i] = _WAITING_;
     }
-        
     return pl;
 }
 
@@ -134,7 +133,39 @@ struct plist *construct_plist(unsigned short *port_list, int len, int proto) {
  * htype: the host type (see target type macro target.h)
  * addr: pointer to string form ip address
  ***/
-struct host *construct_host(struct host *h, int htype, char *addr, unsigned short *port_list, int port_list_len) {
+struct host *construct_host_t(struct host *h, int htype, char *addr, unsigned short *port_list, int port_list_len) {
+    struct sockaddr_in *host_in;
+    void *tmp; /* don't you dare free() this shit! */
+    /* allocate struct host */
+	tmp = (struct sockaddr_in *) malloc (sizeof(struct sockaddr_in));
+	if (tmp != NULL) {
+	    host_in = tmp;
+	} else {
+	    fprintf (stderr, "ERROR: unable to allocate memory for struct \
+	        struct sockaddr_in. (construct_host())\n");
+	    exit(EXIT_FAILURE);
+	}
+    /* allocate host->addr */
+    tmp = (char *) malloc ( IP_STRING_LEN * sizeof(char) );
+	if (tmp != NULL) {
+	    h->ipaddr = tmp;
+	} else {
+	    fprintf (stderr, "ERROR: unable to allocate memory for struct \
+	        h->ipaddr. (construct_host())\n");
+	    exit(EXIT_FAILURE);
+	}
+    h->ports_pl = construct_plist(port_list, port_list_len, _TCP);
+    host_in->sin_family = AF_INET;
+    host_in->sin_port = htons(h->ports_pl->ports[0]);
+    inet_pton(AF_INET, (const char *) addr, &(host_in->sin_addr));
+    h->addr_in = host_in;
+    memcpy (h->ipaddr, addr, strlen(addr) + 1);
+    h->host_type = htype;
+    
+    return h;
+}
+
+struct host *construct_host_s(struct host *h, char *addr, unsigned short port) {
     struct sockaddr_in *host_in;
     void *tmp; /* don't you dare free() this shit! */
     /* allocate struct host */
@@ -155,13 +186,13 @@ struct host *construct_host(struct host *h, int htype, char *addr, unsigned shor
 	        h->ipaddr. (construct_host())\n");
 	    exit(EXIT_FAILURE);
 	}
-    h->ports_pl = construct_plist(port_list, port_list_len, _TCP);
+    h->ports_pl = NULL; /*we don't need a portlist struct for our local host. */
     host_in->sin_family = AF_INET;
-    host_in->sin_port = htons(h->ports_pl->ports[0]);
+    host_in->sin_port = htons((unsigned short) port);
     inet_pton(AF_INET, (const char *) addr, &(host_in->sin_addr));
     h->addr_in = host_in;
     memcpy (h->ipaddr, addr, strlen(addr) + 1);
-    h->host_type = htype;
+    h->host_type = _SELF;
     
     return h;
 }
@@ -179,16 +210,12 @@ void get_local_ip(char iface[], char **buffer, size_t buflen) {
         char *p = NULL, *e; 
         size_t n;
         while ((getline(&p, &n, fp) > 0) && p) {
-            if (p = strstr(p, "inet addr:")) {
+            if ( (p = strstr(p, "inet addr:")) ) {
                 p+=10;
-                if (e = strchr(p, ' ')) {
+                if ( (e = strchr(p, ' ')) ) {
                     *e='\0';
-                    printf("PRINT IP: %s\n", p);
                     snprintf(*buffer, buflen, "%s", p);
                 }
-            } else {
-                perror("get_extern_ip() failed to get external ip using `ifconfig <iface>` ");
-                exit(EXIT_FAILURE);
             }
         }
     }
